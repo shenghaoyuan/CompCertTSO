@@ -1,0 +1,5 @@
+s/\\ottsym{thread\\_create}  \\ottsym{(}  \\ottnt{e_{{\\mathrm{1}}}}  \\ottsym{,}  \\ottnt{e_{{\\mathrm{2}}}}  \\ottsym{)}/\\cyy{\\trimbox{$\\ottsym{thread\\_create}  \\ottsym{(}  \\ottnt{e_{{\\mathrm{1}}}}  \\ottsym{,}  \\ottnt{e_{{\\mathrm{2}}}}  \\ottsym{)}$}}/g
+s/\\ottnt{opt\\_lhs} \\, \\ottnt{as}  \\ottsym{(}  \\ottnt{es}  \\ottsym{)}/\\cyy{\\trimbox{$\\ottnt{opt\\_lhs} \\, \\ottnt{as}  \\ottsym{(}  \\ottnt{es}  \\ottsym{)}$}}/g
+s/\\ottdrulename{StepLoadByValue/\\ottdrulename{LoadByValue/g
+s/\\ottkw{mfence}/\\cyy{\\trimbox{\\ottkw{mfence}}}/g
+s/\\ottnt{opt\\_lhs} \\, \\ottnt{astmt}  \\ottsym{(}  \\ottnt{e}^\*  \\ottsym{)}/\\cyy{\\trimbox{$\\ottnt{opt\\_lhs} \\, \\ottnt{astmt}  \\ottsym{(}  \\ottnt{e}^\*  \\ottsym{)}$}}/g
