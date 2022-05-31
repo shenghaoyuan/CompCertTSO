@@ -1322,7 +1322,7 @@ Qed.
 Definition shift_sp (tf: Mach.function) (sp: option pointer) :=
   match sp with
   | None => None
-  | Some p => Some (Ptr.add p (Int.repr (-tf.(fn_framesize))))
+  | Some p => Some (MPtr.add p (Int.repr (-tf.(fn_framesize))))
   end.
 
 Remark shift_offset_sp:
@@ -1338,7 +1338,7 @@ Proof.
   rewrite (unfold_transf_function _ _ H). unfold fn_framesize.
   clarify.
   f_equal; f_equal.
-  rewrite <- Int.neg_repr, <- Ptr.add_add_r, <- Int.add_assoc.
+  rewrite <- Int.neg_repr, <- MPtr.add_add_r, <- Int.add_assoc.
   f_equal.
   rewrite <- (Int.add_zero n) at 2; rewrite <- (Int.add_commut n).
   f_equal.
@@ -1703,8 +1703,8 @@ Proof.
           (transl_body f (make_env (function_bounds f)) (framesize_of_fn f));
     [|by rewrite (unfold_transf_function f tfn TRANSL); simpl].
   unfold transl_body. eexact EXP.
-  replace (Ptr.sub_int stk (Int.repr (fn_framesize tfn)))
-     with (Ptr.add stk (Int.repr (-fn_framesize tfn))).
+  replace (MPtr.sub_int stk (Int.repr (fn_framesize tfn)))
+     with (MPtr.add stk (Int.repr (-fn_framesize tfn))).
   2: by destruct stk; simpl; rewrite Int.sub_add_opp, Int.neg_repr.
   econstructor; eauto with coqlib.
   by destruct s; 

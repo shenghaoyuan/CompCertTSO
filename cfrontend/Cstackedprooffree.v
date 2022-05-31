@@ -429,7 +429,7 @@ Proof.
   induction l1 as [|[p' n'] l1 IH]; intros l1' l2 IN RR. done.
 
   simpl in *.
-  destruct (Ptr.eq_dec p' p) as [-> | N]. by subst.
+  destruct (MPtr.eq_dec p' p) as [-> | N]. by subst.
   erewrite IH. rewrite <- RR; reflexivity.
     by destruct IN.
   done.
@@ -446,13 +446,13 @@ Proof.
   
   induction sp as [|[p' n'] sp IH]; intro IN. done.
   
-  simpl in IN. destruct (Ptr.eq_dec p' p) as [-> | N]. 
+  simpl in IN. destruct (MPtr.eq_dec p' p) as [-> | N]. 
     exists nil. exists sp. exists n'. simpl.
-    by destruct Ptr.eq_dec.
+    by destruct MPtr.eq_dec.
   destruct IN as [-> | IN]. done.
   destruct (IH IN) as [l1 [l2 [n [Esp Err]]]].
   exists ((p', n') :: l1). exists l2. exists n.
-  simpl. destruct Ptr.eq_dec. done. 
+  simpl. destruct MPtr.eq_dec. done. 
   rewrite Err, Esp. done.
 Qed.
 
@@ -463,7 +463,7 @@ Lemma pointer_in_range_list_false:
 Proof.
   induction l as [|[hp hn] l IH]; intros; intro IN. done.
   simpl in IN; destruct IN as [E | IN]; [inv E|]; simpl in PIRL;
-    destruct Ptr.eq_dec; try done; eby eapply IH.
+    destruct MPtr.eq_dec; try done; eby eapply IH.
 Qed.
 
 Lemma part_update_buffer_free:
@@ -566,7 +566,7 @@ Lemma update_part_buffer_mrestr:
   (PUB : part_update_buffer (tso_buffers tso t) (sp t) = Some sp')
   (MRWP : mem_related_with_partitioning tso.(tso_mem) sp)
   (IN : In (p, n) sp'),
-     mrestr tso.(tso_mem) (Ptr.block p).
+     mrestr tso.(tso_mem) (MPtr.block p).
 Proof.
   intros.
   pose proof (no_unbuffer_errors _ t US) as AB'.
@@ -776,7 +776,7 @@ Proof.
       eapply disjoint_inside_disjoint. 2 : apply RIr'.
       eapply CSRLD; [done | by apply in_eq].
     eapply ranges_disjoint_comm, machine_scratch_disjoint.
-      replace (machine_ptr p) with (low_mem_restr (Ptr.block p) = true);
+      replace (machine_ptr p) with (low_mem_restr (MPtr.block p) = true);
         [|by destruct p].
       rewrite <- MCRt.
       eby destruct TC; eapply update_part_buffer_mrestr; try apply in_eq.
@@ -842,7 +842,7 @@ Proof.
     unfold part_update_buffer in *. 
     rewrite !flatten_app, <- ! BPD, !fold_left_opt_app, PUBs, PUBt. simpl.
     split. by rewrite <- app_nil_end.
-    split. by destruct (Ptr.eq_dec p p) as [_|?]. 
+    split. by destruct (MPtr.eq_dec p p) as [_|?]. 
     split. by simpl; rewrite <- app_nil_end. 
     (* Prove the state relation *)
     split; [|done].
@@ -1318,7 +1318,7 @@ Proof.
     eexists sm''. eexists sp'. exists tp'.
     unfold part_update_buffer in *. 
     rewrite !flatten_app, <- ! BPD, !fold_left_opt_app, PUBs, PUBt. simpl.
-    destruct (low_mem_restr (Ptr.block p)) as [] _eqn : LMR;
+    destruct (low_mem_restr (MPtr.block p)) as [] _eqn : LMR;
       [|by destruct p; simpl in *; rewrite LMR in MP].
     split. done. 
     split. done. 

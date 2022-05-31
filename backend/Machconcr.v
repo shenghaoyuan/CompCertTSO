@@ -91,10 +91,10 @@ Definition chunk_of_type (ty: typ) :=
   match ty with Tint => Mint32 | Tfloat => Mfloat64 end.
 
 Definition load_stack (m: mem) (sp: pointer) (ty: typ) (ofs: int) :=
-  load_ptr (chunk_of_type ty) m (Ptr.add sp ofs).
+  load_ptr (chunk_of_type ty) m (MPtr.add sp ofs).
 
 Definition store_stack (m: mem) (sp: pointer) (ty: typ) (ofs: int) (v: val) :=
-  store_ptr (chunk_of_type ty) m (Ptr.add sp ofs) v.
+  store_ptr (chunk_of_type ty) m (MPtr.add sp ofs) v.
 *)
 
 (** Extract the values of the arguments of an external call. *)
@@ -190,7 +190,7 @@ Definition parent_sp ts := match ts with
 Fixpoint find_label2 (lbl: label) (c: code) (p: pointer) {struct c} : pointer :=
   match c with
   | nil => p
-  | i1 :: il => if is_label lbl i1 then p else find_label2 lbl il (Ptr.add p Int.one)
+  | i1 :: il => if is_label lbl i1 then p else find_label2 lbl il (MPtr.add p Int.one)
   end.
 
 Section RELSEM.
@@ -208,7 +208,7 @@ Definition memarg_of_location (rs : regset) (sp : pointer) (l : loc)
   match l with
     | R r => inr _ (Regmap.get r rs)
     | S (Incoming ofs ty) => 
-        inl _ (Ptr.add sp (Int.repr (4 * ofs)), Asm.chunk_of_ty ty)
+        inl _ (MPtr.add sp (Int.repr (4 * ofs)), Asm.chunk_of_ty ty)
     | _ => inr _ Vundef
   end.
 
@@ -229,14 +229,14 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
       (Esz: size = 4 * Conventions.size_arguments (funsig fn))
       (SZ:  size + 15 + Stacklayout.fe_retaddrsize (* extra space for alignment and return address *) <= 
             Stacklayout.thread_stack_size)
-      (Esp: sp = Asm.align_stack (Ptr.add stkp 
+      (Esp: sp = Asm.align_stack (MPtr.add stkp 
                                  (Int.repr (Stacklayout.thread_stack_size - size)))),
       mc_step
         (Initstate pfn args)
         (TEmem (MEalloc stkp (Int.repr Stacklayout.thread_stack_size) MObjStack))
         (Initargsstate
                   pfn args (Conventions.loc_parameters (funsig fn)) 
-                  (Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
+                  (MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
                   (stkp, Int.repr Stacklayout.thread_stack_size) (Regmap.init Vundef))
   | exec_Initalloc_oom:
       forall pfn args fn size
@@ -249,7 +249,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
         (Initstate pfn args)
   | exec_Initargmem:
       forall pfn arg args ofs argp ty locs sp stkr rs
-        (Eargp: argp = Ptr.add sp (Int.repr (4 * ofs + Stacklayout.fe_retaddrsize))),
+        (Eargp: argp = MPtr.add sp (Int.repr (4 * ofs + Stacklayout.fe_retaddrsize))),
       mc_step
         (Initargsstate pfn (arg :: args) (S (Incoming ofs ty) :: locs) sp stkr rs)
         (TEmem (MEwrite argp (Asm.chunk_of_ty ty) arg))
@@ -272,7 +272,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
         TEtau (State s f sp c stkr rs)
   | exec_Mgetstack:
       forall s f sp ofs ty dst c rs v ptr chunk stkr rs'
-      (Eptr   : ptr   = Ptr.add sp ofs)
+      (Eptr   : ptr   = MPtr.add sp ofs)
       (Echunk : chunk = Asm.chunk_of_ty ty)
       (Ers'   : rs'   = (rs#dst <- v))
       (HT     : Val.has_type v (type_of_chunk chunk)),
@@ -281,7 +281,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
         (State s f sp c stkr rs')
   | exec_Msetstack:
       forall s f sp src ofs ty c stkr rs ptr chunk v
-      (Eptr  : ptr   = Ptr.add sp ofs)
+      (Eptr  : ptr   = MPtr.add sp ofs)
       (Echunk: chunk = Asm.chunk_of_ty ty)
       (Ev    : v     = Val.conv (rs src) (type_of_chunk chunk))
       (HT    : Val.has_type v (type_of_chunk chunk)),
@@ -291,7 +291,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
   | exec_Mgetparam:
       forall s fb f sp ofs ty dst c stkr rs v ptr chunk rs'
       (FF    : Genv.find_funct_ptr ge fb = Some (Internal f))
-      (Eptr  : ptr   = Ptr.add (Ptr.add sp (parent_offset f)) ofs)
+      (Eptr  : ptr   = MPtr.add (MPtr.add sp (parent_offset f)) ofs)
       (Echunk: chunk = Asm.chunk_of_ty ty)
       (Ers'  : rs'   = (rs#dst <- v))
       (HT    : Val.has_type v (type_of_chunk chunk)),
@@ -323,8 +323,8 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
       (FF : find_function_ptr ge ros rs = Some f')
       (GFF: Genv.find_funct_ptr ge fb = Some (Internal f))
       (RA : Asmgenretaddr.return_address_offset f c roffs)
-      (Era: ra = Ptr (Int.unsigned (Ptr.offset fb)) roffs)
-      (Esp: sp' = Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
+      (Era: ra = Ptr (Int.unsigned (MPtr.offset fb)) roffs)
+      (Esp: sp' = MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
       (RI : range_inside (sp', Int.zero) stkr)
       (El : lab = TEmem (MEwrite sp' Mint32 (Vptr ra))),
       mc_step (State s fb sp (Mcall sig ros :: c) stkr rs)
@@ -332,7 +332,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
   | exec_Mcall_oom:
       forall s fb sp sig ros c stkr rs sp' f'
       (FF : find_function_ptr ge ros rs = Some f')
-      (Esp: sp' = Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
+      (Esp: sp' = MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
       (RI : ~ range_inside (sp', Int.zero) stkr),
       mc_step 
         (State s fb sp (Mcall sig ros :: c) stkr rs)
@@ -359,7 +359,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
   | exec_Mreturn:
       forall s fb sp c stkr rs sp' f'
       (GFF   : Genv.find_funct_ptr ge fb = Some (Internal f'))
-      (Esp'  : sp' = Ptr.add sp (total_framesize f'))
+      (Esp'  : sp' = MPtr.add sp (total_framesize f'))
       (INSIDE: range_inside (sp', Int.zero) stkr),
       mc_step (State s fb sp (Mreturn :: c) stkr rs)
         TEtau
@@ -389,22 +389,22 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
   | exec_function_internal:
       forall s fb stkr rs f sp sp',
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
-      sp' = Ptr.sub_int sp (total_framesize f) ->
+      sp' = MPtr.sub_int sp (total_framesize f) ->
       range_inside (sp', Int.zero) stkr ->
-      (* lab = TEmem (MEwrite (Ptr.add sp (fn_link_ofs f)) Mint32 (Vptr sp')) -> *)
+      (* lab = TEmem (MEwrite (MPtr.add sp (fn_link_ofs f)) Mint32 (Vptr sp')) -> *)
       mc_step (Callstate s fb sp stkr rs)
         TEtau (State s fb sp' f.(fn_code) stkr rs)
   | exec_function_internal_oom:
       forall s fb stkr rs f sp sp',
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
-      sp' = Ptr.sub_int sp (total_framesize f) ->
+      sp' = MPtr.sub_int sp (total_framesize f) ->
       ~ range_inside (sp', Int.zero) stkr ->
       mc_step (Callstate s fb sp stkr rs)
         (TEoutofmem) Errorstate (* was (Callstate s fb sp stkr rs) *)
   | exec_function_external_call:
       forall s fb sp stkr rs ef memargs extmemargs,
       Genv.find_funct_ptr ge fb = Some (External ef) ->
-      memarglist_from_sig rs (Ptr.add sp (Int.repr Stacklayout.fe_retaddrsize)) 
+      memarglist_from_sig rs (MPtr.add sp (Int.repr Stacklayout.fe_retaddrsize)) 
                           ef.(ef_sig) = memargs ->
       map val_of_eval_memarg extmemargs = memargs ->
       mc_step (Callstate s fb sp stkr rs)
@@ -421,7 +421,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
          (Returnstate s sp stkr rs')
   | exec_return:
       forall s f sp ra c stkr rs sp',
-      sp' = Ptr.add sp (Int.repr Stacklayout.fe_retaddrsize) ->
+      sp' = MPtr.add sp (Int.repr Stacklayout.fe_retaddrsize) ->
       mc_step 
         (Returnstate (Stackframe f sp' ra c :: s) sp stkr rs)
         (TEmem (MEread sp Mint32 (Vptr ra)))
@@ -436,7 +436,7 @@ Inductive mc_step: state -> thread_event -> state -> Prop :=
       ra <> (Vptr (get_ra s)) ->
       match s with 
         | Stackframe f' sp' ra' c' :: s' => 
-            sp' = Ptr.add sp (Int.repr Stacklayout.fe_retaddrsize)
+            sp' = MPtr.add sp (Int.repr Stacklayout.fe_retaddrsize)
         | _ => True
       end ->
       Val.has_type ra Tint ->

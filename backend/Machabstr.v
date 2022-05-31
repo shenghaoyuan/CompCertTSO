@@ -332,7 +332,7 @@ Inductive ma_step: state -> thread_event -> state -> Prop :=
   | exec_Mreturn:
       forall s f sp c rs fr lab
       (Elab : lab = match sp with None => TEtau | 
-              Some stk => TEmem (MEfree (Ptr.add stk (Int.repr f.(fn_framesize))) MObjStack) end),
+              Some stk => TEmem (MEfree (MPtr.add stk (Int.repr f.(fn_framesize))) MObjStack) end),
       ma_step (State s f sp (Mreturn :: c) rs fr)
         lab
         (Returnstate s rs)
@@ -370,7 +370,7 @@ Inductive ma_step: state -> thread_event -> state -> Prop :=
       (Estksize : stksize = f.(fn_stacksize)),
       ma_step (Callstate s (Internal f) rs)
         (TEmem (MEalloc stk stksize MObjStack)) 
-        (State s f (Some (Ptr.sub_int stk (Int.repr (f.(fn_framesize)))))
+        (State s f (Some (MPtr.sub_int stk (Int.repr (f.(fn_framesize)))))
                f.(fn_code) rs empty_frame)
   | exec_function_external_call:
       forall s ef args eargs rs1

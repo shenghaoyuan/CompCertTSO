@@ -79,7 +79,7 @@ Definition Vfalse: val := Vint Int.zero.
 Module Val.
 
 Lemma eq_dec: forall (x y: val), {x=y} + {x<>y}.
-Proof. decide equality; [apply Int.eq_dec | apply Float.eq_dec | apply Ptr.eq_dec]. Qed.
+Proof. decide equality; [apply Int.eq_dec | apply Float.eq_dec | apply MPtr.eq_dec]. Qed.
 
 Definition of_bool (b: bool): val := if b then Vtrue else Vfalse.
 
@@ -251,8 +251,8 @@ Definition singleoffloat (v: val) : val :=
 Definition add (v1 v2: val): val :=
   match v1, v2 with
   | Vint n1, Vint n2 => Vint(Int.add n1 n2)
-  | Vptr p1, Vint n2 => Vptr (Ptr.add p1 n2)
-  | Vint n1, Vptr p2 => Vptr (Ptr.add p2 n1)
+  | Vptr p1, Vint n2 => Vptr (MPtr.add p1 n2)
+  | Vint n1, Vptr p2 => Vptr (MPtr.add p2 n1)
   | _, _ => Vundef
   end.
 
@@ -260,9 +260,9 @@ Definition add (v1 v2: val): val :=
 Definition sub (v1 v2: val): val :=
   match v1, v2 with
   | Vint n1, Vint n2 => Vint(Int.sub n1 n2)
-  | Vptr p1, Vint n2 => Vptr(Ptr.sub_int p1 n2)
+  | Vptr p1, Vint n2 => Vptr(MPtr.sub_int p1 n2)
   | Vptr p1, Vptr p2 =>
-    match Ptr.sub_ptr p1 p2 with
+    match MPtr.sub_ptr p1 p2 with
     | Some i => Vint i 
     | None => Vundef
     end
@@ -428,7 +428,7 @@ Definition cmp (c: comparison) (v1 v2: val): val :=
   | Vint n1, Vint n2 => of_bool (Int.cmp c n1 n2)
   | Vint n1, Vptr _ =>
       if Int.eq n1 Int.zero then cmp_mismatch c else Vundef
-  | Vptr p1, Vptr p2 => of_bool3 (Ptr.cmp c p1 p2)
+  | Vptr p1, Vptr p2 => of_bool3 (MPtr.cmp c p1 p2)
   | Vptr _, Vint n2 =>
       if Int.eq n2 Int.zero then cmp_mismatch c else Vundef
   | _, _ => Vundef
@@ -440,7 +440,7 @@ Definition cmpu (c: comparison) (v1 v2: val): val :=
       of_bool (Int.cmpu c n1 n2)
   | Vint n1, Vptr _ =>
       if Int.eq n1 Int.zero then cmp_mismatch c else Vundef
-  | Vptr p1, Vptr p2 => of_bool3 (Ptr.cmpu c p1 p2)
+  | Vptr p1, Vptr p2 => of_bool3 (MPtr.cmpu c p1 p2)
   | Vptr _, Vint n2 =>
       if Int.eq n2 Int.zero then cmp_mismatch c else Vundef
   | _, _ => Vundef
@@ -586,13 +586,13 @@ Proof.
   (* All ints. *)
   rewrite Int.add_assoc; auto. 
   (* ptr, int, int *)
-  destruct p. unfold Ptr.add. rewrite Int.add_assoc. 
+  destruct p. unfold MPtr.add. rewrite Int.add_assoc. 
     pattern i1 at 1. rewrite Int.add_commut. reflexivity. 
   (* int, ptr, int *)
-  destruct p. unfold Ptr.add. rewrite Int.add_assoc. 
+  destruct p. unfold MPtr.add. rewrite Int.add_assoc. 
   pattern i1 at 1. rewrite Int.add_commut. rewrite Int.add_assoc. reflexivity. 
   (* int, int, ptr *)
-  destruct p. unfold Ptr.add. rewrite Int.add_assoc. reflexivity. 
+  destruct p. unfold MPtr.add. rewrite Int.add_assoc. reflexivity. 
 Qed.
 
 Theorem add_permut: 
@@ -872,7 +872,7 @@ Proof.
   rewrite Int.negate_cmp. apply notbool_negb_1.
   case (Int.eq i Int.zero). apply negate_cmp_mismatch. reflexivity.
   case (Int.eq i Int.zero). apply negate_cmp_mismatch. reflexivity.
-  rewrite Ptr.negate_cmp. by destruct Ptr.cmp. 
+  rewrite MPtr.negate_cmp. by destruct MPtr.cmp. 
 Qed.
 
 Theorem negate_cmpu:
@@ -883,7 +883,7 @@ Proof.
   rewrite Int.negate_cmpu. apply notbool_negb_1.
   case (Int.eq i Int.zero). apply negate_cmp_mismatch. reflexivity.
   case (Int.eq i Int.zero). apply negate_cmp_mismatch. reflexivity.
-  rewrite Ptr.negate_cmpu. by destruct Ptr.cmpu.
+  rewrite MPtr.negate_cmpu. by destruct MPtr.cmpu.
 Qed.
 
 Lemma swap_cmp_mismatch:
@@ -903,7 +903,7 @@ Proof.
   rewrite Int.swap_cmp. auto.
   case (Int.eq i Int.zero). apply swap_cmp_mismatch. auto.
   case (Int.eq i Int.zero). apply swap_cmp_mismatch. auto.
-  rewrite Ptr.swap_cmp. auto.
+  rewrite MPtr.swap_cmp. auto.
 Qed.
 
 Theorem swap_cmpu:
@@ -914,7 +914,7 @@ Proof.
   rewrite Int.swap_cmpu. auto.
   case (Int.eq i Int.zero). apply swap_cmp_mismatch. auto.
   case (Int.eq i Int.zero). apply swap_cmp_mismatch. auto.
-  rewrite Ptr.swap_cmpu. auto.
+  rewrite MPtr.swap_cmpu. auto.
 Qed.
 
 Theorem negate_cmpf_eq:
@@ -979,7 +979,7 @@ Proof.
   apply of_bool_is_bool.
   case (Int.eq i Int.zero). apply cmp_mismatch_is_bool. apply undef_is_bool.
   case (Int.eq i Int.zero). apply cmp_mismatch_is_bool. apply undef_is_bool.
-  case (Ptr.cmp c p p0); vauto.
+  case (MPtr.cmp c p p0); vauto.
 Qed.
 
 Lemma cmpu_is_bool:
@@ -989,7 +989,7 @@ Proof.
   apply of_bool_is_bool.
   case (Int.eq i Int.zero). apply cmp_mismatch_is_bool. apply undef_is_bool.
   case (Int.eq i Int.zero). apply cmp_mismatch_is_bool. apply undef_is_bool.
-  case (Ptr.cmpu c p p0); vauto. 
+  case (MPtr.cmpu c p p0); vauto. 
 Qed.
 
 Lemma cmpf_is_bool:  forall c v1 v2, is_bool (cmpf c v1 v2).

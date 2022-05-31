@@ -70,7 +70,7 @@ Definition val_match_approx (a: approx) (v: val) : Prop :=
   | Unknown => True
   | I p => v = Vint p
   | F p => v = Vfloat p
-  | S symb ofs => exists b, Genv.find_symbol ge symb = Some b /\ v = Vptr (Ptr.add b ofs)
+  | S symb ofs => exists b, Genv.find_symbol ge symb = Some b /\ v = Vptr (MPtr.add b ofs)
   | _ => False
   end.
 
@@ -176,14 +176,14 @@ Proof.
   intros until v. unfold eval_static_addressing.
   case (eval_static_addressing_match addr al); intros;
   InvVLMA; simpl in *; FuncInv; try congruence; FZsimplify;
-    try (by (exists b0; repeat rewrite Ptr.add_add_r; rewrite <- H1));
+    try (by (exists b0; repeat rewrite MPtr.add_add_r; rewrite <- H1));
     try (by (destruct (Genv.find_symbol ge id); try inv H0; exists p; try rewrite Int.mul_commut)). 
-  by (exists b1; rewrite Ptr.add_add_r; rewrite <- H1).
-  by (exists b0; repeat rewrite Ptr.add_add_r; rewrite <- H1; simpl; rewrite Int.add_assoc).
+  by (exists b1; rewrite MPtr.add_add_r; rewrite <- H1).
+  by (exists b0; repeat rewrite MPtr.add_add_r; rewrite <- H1; simpl; rewrite Int.add_assoc).
 Qed.
     (* try (by destruct Int.eq; clarify); *)
     (* try (by destruct Int.ltu; clarify); *)
-    (* try by destruct ptr; unfold Ptr.add in *; clarify;  *)
+    (* try by destruct ptr; unfold MPtr.add in *; clarify;  *)
     (*        destruct (Genv.find_symbol ge s1); clarify; *)
     (*        eexists; split; try done; simpl; *)
     (*        rewrite ?Int.sub_add_opp, Int.add_assoc. *)

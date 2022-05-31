@@ -216,12 +216,12 @@ Inductive eval_var_addr: env -> ident -> pointer -> Prop :=
       forall e id sp c offs
       (EG : PTree.get id e.(csenv_env) = Some(Env_stack_scalar c offs))
       (EB : e.(csenv_sp) = Some sp),
-      eval_var_addr e id (Ptr.add sp (Int.repr offs))
+      eval_var_addr e id (MPtr.add sp (Int.repr offs))
   | eval_var_addr_array:
       forall e id sp offs
       (EG : PTree.get id e.(csenv_env) = Some(Env_stack_array offs))
       (EB : e.(csenv_sp) = Some sp),
-      eval_var_addr e id (Ptr.add sp (Int.repr offs))
+      eval_var_addr e id (MPtr.add sp (Int.repr offs))
   | eval_var_addr_global:
       forall e id p
       (EGN : PTree.get id e.(csenv_env) = None)
@@ -251,7 +251,7 @@ Inductive eval_var_ref: env -> ident -> pointer -> memory_chunk -> Prop :=
       forall e id chunk offs sp
       (EG : PTree.get id e.(csenv_env) = Some(Env_stack_scalar chunk offs))
       (EB : e.(csenv_sp) = Some sp),
-        eval_var_ref e id (Ptr.add sp (Int.repr offs)) chunk
+        eval_var_ref e id (MPtr.add sp (Int.repr offs)) chunk
   | eval_var_ref_global:
       forall e id p chunk
       (EG : PTree.get id e.(csenv_env) = None)
@@ -603,7 +603,7 @@ Inductive cst_step : state -> thread_event -> state -> Prop :=
   (EG : env.(csenv_env) ! id = Some(Env_stack_scalar c ofs))
   (EB : env.(csenv_sp) = Some sp),
   cst_step (SKbind f (v::vs) (id::args) env k)
-          (TEmem (MEwrite (Ptr.add sp (Int.repr ofs)) c (cast_value_to_chunk c v)))
+          (TEmem (MEwrite (MPtr.add sp (Int.repr ofs)) c (cast_value_to_chunk c v)))
           (SKbind f vs args env k)
 | StepTransferFun:
   forall f k env,

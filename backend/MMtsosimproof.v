@@ -310,7 +310,7 @@ Proof.
 
   Case "buffers_related_sfree".
     assert (PU: part_update (BufferedFree p MObjStack) ((p, n) :: sp) = Some sp)
-      by (by simpl; destruct Ptr.eq_dec).
+      by (by simpl; destruct MPtr.eq_dec).
     simpl in *. rewrite PU in PUs. simpl in PUs.
     apply -> buffered_states_related_prepend_src; try edone.
     apply (IHBR tm tm'); try edone; vauto.
@@ -335,7 +335,7 @@ Proof.
 
   Case "buffers_related_tfree".
     assert (PU: part_update (BufferedFree p MObjStack) ((p, n)::tp) = Some tp)
-      by (by simpl; destruct Ptr.eq_dec).
+      by (by simpl; destruct MPtr.eq_dec).
     simpl in PU, PUt. rewrite PU in PUt. simpl in PUt.
     destruct BS' as [tmf' ABt'].
     destruct (apply_buffer_consD ABt) as [tmi (ABI & ABti)].
@@ -369,7 +369,7 @@ Proof.
 
   Case "BufferedWrite".
     rewrite (load_store_other ABI). done.
-    destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR.
+    destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR.
       destruct p; destruct pi; left; intro; subst;
         simpl in *; by rewrite LMR in SCR.
     destruct (chunk_inside_range_list pi ci (part t)) as [] _eqn:CIL;
@@ -382,7 +382,7 @@ Proof.
   Case "BufferedAlloc".
     rewrite (load_alloc_other ABI). done.
     destruct ki; destruct valid_alloc_range_dec; try done; try (
-      destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR; try done;
+      destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR; try done;
         by destruct p; destruct pi; left; intro; subst; simpl in *; 
           rewrite LMR in SCR).
     inv PU.
@@ -401,7 +401,7 @@ Proof.
     destruct Fspec as [ni RA].
     rewrite (load_free_other ABI RA). done.
     destruct ki; try (
-      destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR; try done;
+      destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR; try done;
         by destruct p; destruct pi; left; intro; subst; simpl in *; 
           rewrite LMR in SCR).
     destruct (pointer_in_range_list pi (part t)) as [] _eqn : PIR; try done.
@@ -677,7 +677,7 @@ Proof.
       rewrite Bs in SR. 
       destruct (tt ! t'); destruct (st ! t'); try edone; simpl in SR |- *.
         apply <- buffered_states_related_prepend_src. edone.
-        simpl. rewrite Bspt. by destruct Ptr.eq_dec.
+        simpl. rewrite Bspt. by destruct MPtr.eq_dec.
       by destruct SR as (_ & _ & _ & ?).
     (* Other threads *)
     by destruct (tt ! t'); destruct (st ! t'). 
@@ -770,7 +770,7 @@ Proof.
       destruct (tt ! t'); destruct (st ! t'); try edone; simpl in SR |- *.
         apply <- buffered_states_related_prepend_tgt. edone.
         done. 
-        simpl. rewrite Etpt. by destruct Ptr.eq_dec.
+        simpl. rewrite Etpt. by destruct MPtr.eq_dec.
       by destruct SR as (_ & _ & ? & _).
     (* Other threads *)
     destruct (tt ! t'); destruct (st ! t'); try edone; simpl in SR |- *.
@@ -916,7 +916,7 @@ Proof.
     exists sm''. exists tp''. exists sp''. exists ss''.
     split. by rewrite B.
     split. by simpl in *; rewrite ABIs.
-    split. simpl. by destruct Ptr.eq_dec.
+    split. simpl. by destruct MPtr.eq_dec.
     split. done.
     split. econstructor; try edone. eby symmetry. 
     split. done.
@@ -940,7 +940,7 @@ Proof.
     exists (tupdate t tp0 tp). 
     exists sp0. exists ss.
     repeat (split; [vauto|]).
-    simpl. rewrite tupdate_s. by destruct Ptr.eq_dec.
+    simpl. rewrite tupdate_s. by destruct MPtr.eq_dec.
     eapply tfree_preserves_tso_pc_related_witt; try edone.
     eby symmetry.
 Qed.
@@ -1120,7 +1120,7 @@ Proof.
     exists sm''. exists sp''. exists ss''.
     split. by simpl in *; rewrite ABIs.
     split. econstructor; try edone. eby symmetry.
-    split. simpl. by destruct Ptr.eq_dec.
+    split. simpl. by destruct MPtr.eq_dec.
     done.
 Qed.
 
@@ -1409,7 +1409,7 @@ Proof.
   rewrite !@PTree.gss, tupdate_s; simpl.
   econstructor; try edone.
   rewrite fold_left_opt_app, PUs; simpl.
-  subst. by destruct Ptr.eq_dec.  
+  subst. by destruct MPtr.eq_dec.  
 Qed.
 
 (** Write simulation *)
@@ -1754,7 +1754,7 @@ Proof.
     - rewrite apply_buffer_app. rewrite ABt. simpl. 
       eby simpl; rewrite F.
     - rewrite fold_left_opt_app, PUt, E. simpl.
-      eby destruct Ptr.eq_dec.
+      eby destruct MPtr.eq_dec.
     - edone. 
     - done.
   by rewrite !PTree.gso, !tupdate_o, <- OS.
@@ -1781,7 +1781,7 @@ Proof.
     - rewrite apply_buffer_app. rewrite ABt. simpl. 
       eby simpl; rewrite F.
     - rewrite fold_left_opt_app, PUt, E. simpl.
-      eby destruct Ptr.eq_dec.
+      eby destruct MPtr.eq_dec.
     - edone. 
     - done.
   by rewrite !PTree.gso, !tupdate_o.
@@ -2796,10 +2796,10 @@ Proof.
             right; eauto using apply_buffer_reachable_step]). 
     (* Stack *)
     simpl in PU. destruct sp as [|[spp n'] sp]. done.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     subst spp.
     simpl. rewrite range_remove_comm_remove_frees.
-    simpl. destruct Ptr.eq_dec; [|done].
+    simpl. destruct MPtr.eq_dec; [|done].
     rewrite (remove_disjoint RLD RLA).
     destruct r as [rp rn].
     simpl in ABI.

@@ -947,7 +947,7 @@ Definition memarg_of_location_asm rs sp l :=
   match l with
     | R r => inr _ (Pregmap.get (preg_of r) rs)
     | S (Incoming ofs ty) => 
-        inl _ (Ptr.add sp (Int.repr (4 * ofs)), chunk_of_ty ty)
+        inl _ (MPtr.add sp (Int.repr (4 * ofs)), chunk_of_ty ty)
     | _ => inr _ Vundef
   end.
 
@@ -1178,7 +1178,7 @@ Definition exec_pex_instr (s:state) : cl_step_res :=
                   match rs ESP with
                     | Vptr sp =>
                         let memargs := memarglist_from_sig_asm rs 
-                             (Ptr.add sp (Int.repr Stacklayout.fe_retaddrsize)) ef.(ef_sig) in
+                             (MPtr.add sp (Int.repr Stacklayout.fe_retaddrsize)) ef.(ef_sig) in
                         match map_eval_of_val_memarg memargs with
                           |  Some extmemargs =>
                             Rexternalcallmem ef.(ef_id) extmemargs
@@ -1226,13 +1226,13 @@ Definition exec_pex_instr (s:state) : cl_step_res :=
           then
           Ralloc (Int.repr Stacklayout.thread_stack_size) MObjStack 
                  (fun stkp => 
-                   let sp := Ptr.add stkp (Int.repr (Stacklayout.thread_stack_size - size)) in
+                   let sp := MPtr.add stkp (Int.repr (Stacklayout.thread_stack_size - size)) in
                    let asp := align_stack sp in
                    Initargsstate
                    f args (Conventions.loc_parameters (funsig fn))
                    (stkp, Int.repr Stacklayout.thread_stack_size) 
           ((Pregmap.init Vundef)
-             # ESP <- (Vptr (Ptr.sub_int asp (Int.repr Stacklayout.fe_retaddrsize)))))
+             # ESP <- (Vptr (MPtr.sub_int asp (Int.repr Stacklayout.fe_retaddrsize)))))
           else Routofmemory s
         | None => Rnostep  
        end
@@ -1249,7 +1249,7 @@ Definition exec_pex_instr (s:state) : cl_step_res :=
     | Initargsstate f (arg::args) (S (Incoming ofs ty) :: locs) stkr rs =>
         match rs ESP with
           | Vptr sp =>
-              let argp := Ptr.add sp (Int.repr (4 * ofs + Stacklayout.fe_retaddrsize)) in
+              let argp := MPtr.add sp (Int.repr (4 * ofs + Stacklayout.fe_retaddrsize)) in
               Rwrite argp (chunk_of_ty ty) arg
               (Initargsstate f args locs stkr rs)
           | _ => Rnostep
@@ -1284,7 +1284,7 @@ Definition xstep_fn (s : state) (te : thread_event) : option state :=
   | Rread   p c f =>
       match te with
       | TEmem (MEread p' c' v) =>
-           if Ptr.eq_dec p p' then
+           if MPtr.eq_dec p p' then
              if memory_chunk_eq_dec c c' then
                if Val.has_type v (type_of_chunk c) then Some (f v)
                else None
@@ -1317,7 +1317,7 @@ Definition xstep_fn (s : state) (te : thread_event) : option state :=
   | Rmxadd p c vadd f =>
       match te with
       | TEmem (MErmw p' c' vret ao) =>
-          if Ptr.eq_dec p p' then
+          if MPtr.eq_dec p p' then
             if memory_chunk_eq_dec c c' then
               if rmw_instr_dec ao (rmw_ADD vadd) then
                 if Val.has_type vret (type_of_chunk c) then Some (f vret)
@@ -1330,7 +1330,7 @@ Definition xstep_fn (s : state) (te : thread_event) : option state :=
   | Rmcmpxchg p c vold vnew f =>
       match te with
       | TEmem (MErmw p' c' vret ao) =>
-          if Ptr.eq_dec p p' then
+          if MPtr.eq_dec p p' then
             if memory_chunk_eq_dec c c' then
               if rmw_instr_dec ao (rmw_CAS vold vnew) then
                 if Val.has_type vret (type_of_chunk c) then Some (f vret)
@@ -1380,7 +1380,7 @@ Proof.
             end;
      clarify; vauto;
   repeat (destruct thread_event_eq_dec; clarify; vauto);
-  repeat (destruct Ptr.eq_dec; clarify; vauto);
+  repeat (destruct MPtr.eq_dec; clarify; vauto);
   repeat (destruct Int.eq_dec; clarify; vauto);
   repeat (destruct memory_chunk_eq_dec; clarify; vauto);
   repeat (destruct mobject_kind_eq_dec; clarify; vauto);
@@ -1407,7 +1407,7 @@ Proof.
     destruct l as [[] | [] | | | | | |]; clarify;
      destruct l' as [[] | [] | | | | | |];
      clarify; simpl;
-  repeat (destruct Ptr.eq_dec; clarify; vauto);
+  repeat (destruct MPtr.eq_dec; clarify; vauto);
   repeat (destruct Int.eq_dec; clarify; vauto);
   repeat (destruct memory_chunk_eq_dec; clarify; vauto);
   repeat (destruct mobject_kind_eq_dec; clarify; vauto);

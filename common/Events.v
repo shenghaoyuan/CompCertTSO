@@ -186,7 +186,7 @@ Proof. repeat (decide equality; auto using Float.eq_dec, Int.eq_dec, Val.eq_dec)
 
 Lemma thread_event_eq_dec: forall (x y : thread_event), {x = y} + {x <> y}.
 Proof. repeat (decide equality; auto using event_eq_dec, mem_event_eq_dec, 
-                                      Ptr.eq_dec, Float.eq_dec, Int.eq_dec).
+                                      MPtr.eq_dec, Float.eq_dec, Int.eq_dec).
 Qed.
 
 Definition te_wt (e : thread_event) : Prop :=
@@ -321,7 +321,7 @@ Inductive mm_event :=
   | MMtau.
 
 Lemma mm_event_dec (x y: mm_event) : {x = y} + {x<>y}.
-Proof. repeat (decide equality; eauto using Ptr.eq_dec, Int.eq_dec, Val.eq_dec, peq). Qed.
+Proof. repeat (decide equality; eauto using MPtr.eq_dec, Int.eq_dec, Val.eq_dec, peq). Qed.
 
 Tactic Notation "event_cases" tactic(f) tactic(c) :=
     f; [

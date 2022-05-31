@@ -236,7 +236,7 @@ Lemma add_zero:
 Proof.
   unfold Vzero; simpl; destruct v; try done.
   by rewrite Int.add_commut, Int.add_zero.
-  by rewrite Ptr.add_zero_r.
+  by rewrite MPtr.add_zero_r.
 Qed. *)
 
 (** Agreement between Mach register sets and IA32 register sets. *)

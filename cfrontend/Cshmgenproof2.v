@@ -471,14 +471,14 @@ Proof.
     unfold Clight.sem_sub in H1. rewrite H14 in H1; destruct v1; try done.
     destruct v2; try done.   
 
-  destruct (zeq (Ptr.block p) (Ptr.block p0)).
-  unfold Ptr.block in e; destruct p; destruct p0.
+  destruct (zeq (MPtr.block p) (MPtr.block p0)).
+  unfold MPtr.block in e; destruct p; destruct p0.
   rewrite e.
   left; eexists; split.
   eapply steptau_weakstep; simpl.
   eapply StepBinop. 
     unfold eval_binop; unfold Cminorops.eval_binop;
-    unfold option_map; unfold Ptr.sub_ptr; 
+    unfold option_map; unfold MPtr.sub_ptr; 
     destruct (zeq z0 z0); edone; by contradiction n0.
 
   eapply steptau_weakstep; simpl.
@@ -493,14 +493,14 @@ Proof.
   inv BO. unfold Clight.sem_sub in H1. rewrite H14 in H1; destruct v1;
    destruct v2; try done.
 
-  destruct (zeq (Ptr.block p) (Ptr.block p0)).
-  unfold Ptr.block in e; destruct p; destruct p0.
+  destruct (zeq (MPtr.block p) (MPtr.block p0)).
+  unfold MPtr.block in e; destruct p; destruct p0.
   rewrite e.
   left; eexists; split.
   eapply steptau_weakstep; simpl.
   eapply StepBinop.  
     unfold eval_binop; unfold Cminorops.eval_binop;
-    unfold option_map; unfold Ptr.sub_ptr; 
+    unfold option_map; unfold MPtr.sub_ptr; 
     destruct (zeq z1 z1); edone; by contradiction n0.
 
   eapply steptau_weakstep; simpl.
@@ -515,14 +515,14 @@ Proof.
   inv BO. unfold Clight.sem_sub in H1. rewrite H14 in H1; destruct v1;
    destruct v2; try done.
 
-  destruct (zeq (Ptr.block p) (Ptr.block p0)).
-  unfold Ptr.block in e; destruct p; destruct p0.
+  destruct (zeq (MPtr.block p) (MPtr.block p0)).
+  unfold MPtr.block in e; destruct p; destruct p0.
   rewrite e.
   left; eexists; split.
   eapply steptau_weakstep; simpl.
   eapply StepBinop.  
     unfold eval_binop; unfold Cminorops.eval_binop;
-    unfold option_map; unfold Ptr.sub_ptr; 
+    unfold option_map; unfold MPtr.sub_ptr; 
     destruct (zeq z1 z1); edone; by contradiction n0.
 
   eapply steptau_weakstep; simpl.
@@ -537,14 +537,14 @@ Proof.
   inv BO. unfold Clight.sem_sub in H1. rewrite H14 in H1; destruct v1;
    destruct v2; try done.
 
-  destruct (zeq (Ptr.block p) (Ptr.block p0)).
-  unfold Ptr.block in e; destruct p; destruct p0.
+  destruct (zeq (MPtr.block p) (MPtr.block p0)).
+  unfold MPtr.block in e; destruct p; destruct p0.
   rewrite e.
   left; eexists; split.
   eapply steptau_weakstep; simpl.
   eapply StepBinop.  
     unfold eval_binop; unfold Cminorops.eval_binop;
-    unfold option_map; unfold Ptr.sub_ptr; 
+    unfold option_map; unfold MPtr.sub_ptr; 
     destruct (zeq z2 z2); edone; by contradiction n0.
 
   eapply steptau_weakstep; simpl.

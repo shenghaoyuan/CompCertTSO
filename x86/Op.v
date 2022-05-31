@@ -192,7 +192,7 @@ Definition eval_condition (cond: condition) (vl: list val):
 (*       then Some (Int.cmp c n1 n2) *)
 (*       else eval_compare_mismatch c *)
    | Ccomp c, Vptr p1 :: Vptr p2 :: nil => (* shouldn't be used... *)
-    Val.option_bool_of_bool3 (Ptr.cmp c p1 p2)
+    Val.option_bool_of_bool3 (MPtr.cmp c p1 p2)
 (* *)
   | Ccomp c, Vptr _ :: Vint n2 :: nil =>
       eval_compare_null c n2
@@ -201,7 +201,7 @@ Definition eval_condition (cond: condition) (vl: list val):
   | Ccompu c, Vint n1 :: Vint n2 :: nil =>
       Some (Int.cmpu c n1 n2)
   | Ccompu c, Vptr p1 :: Vptr p2 :: nil => 
-      Val.option_bool_of_bool3 (Ptr.cmpu c p1 p2)
+      Val.option_bool_of_bool3 (MPtr.cmpu c p1 p2)
   | Ccompimm c n, Vint n1 :: nil =>
       Some (Int.cmp c n1 n)
   | Ccompimm c n, Vptr _ :: nil =>
@@ -222,7 +222,7 @@ Definition eval_condition (cond: condition) (vl: list val):
 
 Definition offset_sp (sp: option pointer) (delta: int) : option val :=
   match sp with
-  | Some ptr => Some (Vptr (Ptr.add ptr delta))
+  | Some ptr => Some (Vptr (MPtr.add ptr delta))
   | _ => None
   end.
 
@@ -253,17 +253,17 @@ Definition eval_addressing
   | Aglobal s ofs, nil =>
       match Genv.find_symbol genv s with
       | None => None
-      | Some p => Some (Vptr (Ptr.add p ofs))
+      | Some p => Some (Vptr (MPtr.add p ofs))
       end
   | Abased s ofs, Vint n1 :: nil =>
       match Genv.find_symbol genv s with
       | None => None
-      | Some p => Some (Vptr (Ptr.add p (Int.add ofs n1)))
+      | Some p => Some (Vptr (MPtr.add p (Int.add ofs n1)))
       end
   | Abasedscaled sc s ofs, Vint n1 :: nil =>
       match Genv.find_symbol genv s with
       | None => None
-      | Some p => Some (Vptr (Ptr.add p (Int.add ofs (Int.mul n1 sc))))
+      | Some p => Some (Vptr (MPtr.add p (Int.add ofs (Int.mul n1 sc))))
       end
   | Ainstack ofs, nil =>
       offset_sp sp ofs
@@ -404,10 +404,10 @@ Lemma eval_negate_condition:
 Proof.
   destruct cond; simpl; intros; FuncInv; try subst b; simpl; 
     rewrite ?negb_elim, ?Int.negate_cmp, ?Int.negate_cmpu,
-            ?Ptr.negate_cmp, ?Ptr.negate_cmpu;
+            ?MPtr.negate_cmp, ?MPtr.negate_cmpu;
     auto using eval_negate_compare_null.
-  - by destruct Ptr.cmp; simpl in *; clarify.
-  - by destruct Ptr.cmpu; simpl in *; clarify.
+  - by destruct MPtr.cmp; simpl in *; clarify.
+  - by destruct MPtr.cmpu; simpl in *; clarify.
 Qed.
 
 (** [eval_operation] and [eval_addressing] depend on a global environment
@@ -601,7 +601,7 @@ Variable genv: Genv.t F.
 
 Definition find_symbol_offset (id: ident) (ofs: int) : val :=
   match Genv.find_symbol genv id with
-  | Some b => Vptr (Ptr.add b ofs)
+  | Some b => Vptr (MPtr.add b ofs)
   | None => Vundef
   end.
 

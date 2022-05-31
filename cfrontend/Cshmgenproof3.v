@@ -585,7 +585,7 @@ Proof.
   eapply step_weakstep; simpl.
   eapply StepBinop.
   unfold eval_binop. unfold Cminorops.eval_binop. done.
-  unfold Ptr.offset. destruct p.  eapply match_val; try edone.
+  unfold MPtr.offset. destruct p.  eapply match_val; try edone.
 
 
   Case "StepFunion".

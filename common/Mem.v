@@ -2100,7 +2100,7 @@ Definition load (chunk: memory_chunk) (m: mem) (b: Z) (ofs: Z)
 Definition arange := (pointer * int)%type.
 
 Lemma range_eq_dec (x y : arange): {x = y} + {x <> y}.
-Proof. decide equality; auto using Int.eq_dec, Ptr.eq_dec. Qed.
+Proof. decide equality; auto using Int.eq_dec, MPtr.eq_dec. Qed.
 
 (** Definition of memory operations using pointers. *)  
 Definition alloc_ptr (r : arange) (k : mobject_kind) (m : mem) : option mem :=
@@ -2519,7 +2519,7 @@ Fixpoint pointer_in_range_list (p : pointer) (l : list arange) : bool :=
   match l with
     | nil => false
     | (p', _) :: t => 
-        if Ptr.eq_dec p p' 
+        if MPtr.eq_dec p p' 
           then true
           else pointer_in_range_list p t
   end.
@@ -2530,7 +2530,7 @@ Lemma pointer_in_range_listD:
     exists n, In (p, n) l.
 Proof.
   intros p. induction l as [|[p' n'] l IH]. done.
-  simpl; destruct (Ptr.eq_dec p p') as [-> | N].
+  simpl; destruct (MPtr.eq_dec p p') as [-> | N].
     intro. eexists. left; reflexivity.
   intro H. destruct (IH H). eexists; right; eassumption.
 Qed.
@@ -2541,7 +2541,7 @@ Lemma pointer_in_range_listI:
     pointer_in_range_list p l.
 Proof.
   intros p l n. induction l as [|[p' n'] l IH]; clarify.
-  simpl; destruct (Ptr.eq_dec p p') as [-> | N]; intros [X|]; clarify. 
+  simpl; destruct (MPtr.eq_dec p p') as [-> | N]; intros [X|]; clarify. 
 Qed.
 
 (** [chunk_inside_range_list] *)
@@ -2596,7 +2596,7 @@ Fixpoint range_remove (p : pointer) (rs : list arange) : list arange :=
   match rs with
     | nil => nil
     | (p', s')::rest => 
-        if Ptr.eq_dec p' p 
+        if MPtr.eq_dec p' p 
           then range_remove p rest 
           else (p', s')::(range_remove p rest)
   end.
@@ -2606,7 +2606,7 @@ Lemma in_range_removeD:
     p' <> p /\ In (p', n') l.
 Proof.
   induction l as [|[ph nh] l IH]; simpl; try done.
-  destruct (Ptr.eq_dec ph p) as [-> | N]; simpl.
+  destruct (MPtr.eq_dec ph p) as [-> | N]; simpl.
     tauto.
   intros [E | IN]; clarify; tauto. 
 Qed.
@@ -2617,7 +2617,7 @@ Lemma in_range_removeI:
 Proof.
   induction l as [|[ph nh] l IH]; simpl; try done.
   intros [E | IN]; clarify; 
-  destruct (Ptr.eq_dec); clarify; simpl; tauto.
+  destruct (MPtr.eq_dec); clarify; simpl; tauto.
 Qed.
 
 Lemma in_range_remove:
@@ -2626,7 +2626,7 @@ Lemma in_range_remove:
 Proof.
   intros p p' n' l.
   induction l as [|[ph nh] l IH]; simpl; try done.
-  destruct (Ptr.eq_dec ph p) as [-> | N].
+  destruct (MPtr.eq_dec ph p) as [-> | N].
      tauto.
   intros [E | IN]; [by left |by right; apply IH].
 Qed.
@@ -2636,7 +2636,7 @@ Lemma in_range_remove_back:
     In (p', n') l -> p = p' \/ In (p', n') (range_remove p l).
 Proof.
   induction l as [|[ph nh] l IH]; simpl; try done.
-  destruct (Ptr.eq_dec ph p) as [-> | N].
+  destruct (MPtr.eq_dec ph p) as [-> | N].
     intros [E | IN]. inv E; by left.
     tauto.
   intros [E | IN]. inv E. right; by apply in_eq.
@@ -2747,7 +2747,7 @@ Lemma range_list_disjoint_remove:
 Proof.
   induction l as [|[ph nh]  l IH]; simpl; try done.
   intros [DISJ RNI].
-  destruct (Ptr.eq_dec ph p) as [-> | N]. tauto. 
+  destruct (MPtr.eq_dec ph p) as [-> | N]. tauto. 
   simpl. split. by apply IH. 
   intros [] IN'. eby eapply RNI, in_range_remove.
 Qed.  
@@ -2762,7 +2762,7 @@ Proof.
   induction l as [|[ph nh] l IH]; simpl.
     by intros.
   intros RNE [RD RNI] n IN.
-  destruct (Ptr.eq_dec ph p) as [-> | N].
+  destruct (MPtr.eq_dec ph p) as [-> | N].
     assert (PNE: range_non_empty (p, n)). eby apply RNE; right; eapply in_range_remove.
     assert (PHNE: range_non_empty (p, nh)) by (apply RNE; left; done).
     apply RNI in IN.
@@ -3843,7 +3843,7 @@ Fixpoint store_init_data_list (pos: pointer) (id: list init_data) (m : mem)
   match id with
     | nil => Some m
     | init :: t =>
-      let newpos := Ptr.add pos (Int.repr (size_init_data init)) in
+      let newpos := MPtr.add pos (Int.repr (size_init_data init)) in
       optbind (store_init_data pos init)
               (store_init_data_list newpos t m)
   end.
@@ -3937,7 +3937,7 @@ Qed.
 Lemma range_allocated_consistent_with_restr:
   forall p n k m,
     range_allocated (p, n) k m ->
-    mrestr m (Ptr.block p) = true.
+    mrestr m (MPtr.block p) = true.
 Proof.
   intros [b ofs] n k m RA; simpl.
   unfold range_allocated in RA.

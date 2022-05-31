@@ -34,7 +34,7 @@ Inductive pointer : Type :=
 
 Definition nullptr := Ptr 0 Int.zero.
 
-Module Ptr.
+Module MPtr.
 
 Definition block (p : pointer) : Z :=
   match p with
@@ -177,19 +177,19 @@ Proof.
 Qed.
 
 Lemma add_zero_r: forall p,
-  Ptr.add p Int.zero = p.
+  MPtr.add p Int.zero = p.
 Proof.
   by intros; destruct p; simpl; rewrite Int.add_zero.
 Qed.
 
 Lemma add_add_r: forall p n1 n2,
-  Ptr.add p (Int.add n1 n2) = Ptr.add (Ptr.add p n1) n2.
+  MPtr.add p (Int.add n1 n2) = MPtr.add (MPtr.add p n1) n2.
 Proof.
   by intros; destruct p; simpl; rewrite Int.add_assoc.
 Qed.
 
 Lemma add_sub_r: forall p n1 n2,
-  Ptr.add p (Int.sub n1 n2) = Ptr.add (Ptr.sub_int p n2) n1.
+  MPtr.add p (Int.sub n1 n2) = MPtr.add (MPtr.sub_int p n2) n1.
 Proof.
   intros; destruct p; simpl.
   by rewrite <- Int.sub_add_l, (Int.add_commut _ n1), 
@@ -197,53 +197,53 @@ Proof.
 Qed.
 
 Lemma add_add_l: forall p n1 n2,
-  Ptr.add (Ptr.add p n1) n2 = Ptr.add p (Int.add n1 n2). 
+  MPtr.add (MPtr.add p n1) n2 = MPtr.add p (Int.add n1 n2). 
 Proof.
   by symmetry; apply add_add_r.
 Qed.
 
 Lemma add_sub_l: forall p n1 n2,
-  Ptr.add (Ptr.sub_int p n2) n1 = Ptr.add p (Int.sub n1 n2). 
+  MPtr.add (MPtr.sub_int p n2) n1 = MPtr.add p (Int.sub n1 n2). 
 Proof.
   by symmetry; apply add_sub_r.
 Qed.
 
 Lemma sub_zero_r: forall p,
-  Ptr.sub_int p Int.zero = p.
+  MPtr.sub_int p Int.zero = p.
 Proof.
   by intros; destruct p; simpl; rewrite Int.sub_zero_r.
 Qed.
 
 Lemma sub_add_r: forall p n1 n2,
-  Ptr.sub_int p (Int.add n1 n2) = Ptr.sub_int (Ptr.sub_int p n1) n2.
+  MPtr.sub_int p (Int.add n1 n2) = MPtr.sub_int (MPtr.sub_int p n1) n2.
 Proof.
   intros; destruct p; simpl.
   by rewrite !Int.sub_add_opp, !Int.neg_add_distr, Int.add_assoc.
 Qed.
 
 Lemma sub_sub_r: forall p n1 n2,
-  Ptr.sub_int p (Int.sub n1 n2) = Ptr.add (Ptr.sub_int p n1) n2.
+  MPtr.sub_int p (Int.sub n1 n2) = MPtr.add (MPtr.sub_int p n1) n2.
 Proof.
   intros; destruct p; simpl. 
   by rewrite !Int.sub_add_opp, !Int.neg_add_distr, !Int.neg_involutive, Int.add_assoc.
 Qed.
 
 Lemma sub_add_l: forall p n1 n2,
-  Ptr.sub_int (Ptr.add p n1) n2 = Ptr.add p (Int.sub n1 n2).
+  MPtr.sub_int (MPtr.add p n1) n2 = MPtr.add p (Int.sub n1 n2).
 Proof.
   by intros; destruct p; simpl; rewrite !Int.sub_add_opp, Int.add_assoc.
 Qed.
 
 Lemma sub_sub_l: forall p n1 n2,
-  Ptr.sub_int (Ptr.sub_int p n1) n2 = Ptr.sub_int p (Int.add n1 n2).
+  MPtr.sub_int (MPtr.sub_int p n1) n2 = MPtr.sub_int p (Int.add n1 n2).
 Proof.
   by symmetry; apply sub_add_r.
 Qed.
 
-End Ptr.
+End MPtr.
 
 Bind Scope pointer_scope with pointer.
 
-Notation "p + i" := (Ptr.add p i) : pointer_scope.
+Notation "p + i" := (MPtr.add p i) : pointer_scope.
 
 Delimit Scope pointer_scope with pointer.

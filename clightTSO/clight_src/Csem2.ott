@@ -511,7 +511,7 @@ defn
   lval( (e.id:ty) ). ek |env --tau--> lval(e). [ __.delta].ek |env
 
 
-  {{ [[p']] = Ptr.add [[p]]  (Int.repr [[delta]]) }}
+  {{ [[p']] = MPtr.add [[p]]  (Int.repr [[delta]]) }}
 ------------------------------------------------------------- :: Fstruct2
   p . [ __.delta ] . ek  |env --tau-->  p'.ek  |env
 

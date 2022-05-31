@@ -238,12 +238,12 @@ Proof.
 
   rewrite <- Int.add_assoc. decEq. decEq. repeat rewrite Int.add_assoc. auto.
   decEq. decEq. repeat rewrite Int.add_assoc. auto.
-  destruct (Genv.find_symbol ge i); inv H. auto.  unfold Val.add.  unfold Ptr.add.  destruct p. rewrite Int.add_assoc. done.
-  destruct (Genv.find_symbol ge i); inv H. simpl.  unfold Ptr.add. destruct p. 
+  destruct (Genv.find_symbol ge i); inv H. auto.  unfold Val.add.  unfold MPtr.add.  destruct p. rewrite Int.add_assoc. done.
+  destruct (Genv.find_symbol ge i); inv H. simpl.  unfold MPtr.add. destruct p. 
   repeat rewrite Int.add_assoc. decEq. decEq. decEq.  decEq. decEq.  rewrite Int.add_commut. done.
   destruct (Genv.find_symbol ge i0); inv H. simpl. 
-  repeat rewrite Int.add_assoc. decEq. decEq. unfold Ptr.add.  destruct p. decEq.  repeat rewrite Int.add_assoc. decEq.  decEq. apply Int.add_commut. 
-  unfold offset_sp in *. destruct sp; inv H. simpl.  unfold Ptr.add.  destruct p. decEq.  decEq.  decEq.  rewrite Int.add_assoc. auto.
+  repeat rewrite Int.add_assoc. decEq. decEq. unfold MPtr.add.  destruct p. decEq.  repeat rewrite Int.add_assoc. decEq.  decEq. apply Int.add_commut. 
+  unfold offset_sp in *. destruct sp; inv H. simpl.  unfold MPtr.add.  destruct p. decEq.  decEq.  decEq.  rewrite Int.add_assoc. auto.
 Qed.
 
 Theorem eval_addimm:
@@ -316,9 +316,9 @@ Proof.
   subst. EvalOp; simpl. decEq. decEq. repeat rewrite Int.add_assoc. decEq. decEq. apply Int.add_permut.
   subst. EvalOp; simpl. decEq. decEq. repeat rewrite Int.add_assoc. decEq. decEq. apply Int.add_permut.
   destruct (Genv.find_symbol ge id); inv H0.
-  subst. EvalOp; simpl. econstructor.  eauto.  econstructor. by rewrite <- app_nil_end. simpl. destruct (Genv.find_symbol ge id); inv H0.  decEq.  decEq.  unfold Ptr.add. destruct p0.   unfold Ptr.add in H1.  clarify.  
+  subst. EvalOp; simpl. econstructor.  eauto.  econstructor. by rewrite <- app_nil_end. simpl. destruct (Genv.find_symbol ge id); inv H0.  decEq.  decEq.  unfold MPtr.add. destruct p0.   unfold MPtr.add in H1.  clarify.  
   decEq. rewrite Int.add_assoc. rewrite Int.add_assoc. decEq.  decEq. apply Int.add_commut.
-  subst. simpl.   rewrite <- app_nil_end. EvalOp. econstructor.  eauto.  econstructor.  by rewrite <-app_nil_end. (* destruct (Genv.find_symbol ge id); inv H0.*)  unfold eval_operation.    unfold eval_addressing. destruct (Genv.find_symbol ge id); inv H0. unfold Ptr.add. destruct p0.   unfold Ptr.add in H1.  clarify.  
+  subst. simpl.   rewrite <- app_nil_end. EvalOp. econstructor.  eauto.  econstructor.  by rewrite <-app_nil_end. (* destruct (Genv.find_symbol ge id); inv H0.*)  unfold eval_operation.    unfold eval_addressing. destruct (Genv.find_symbol ge id); inv H0. unfold MPtr.add. destruct p0.   unfold MPtr.add in H1.  clarify.  
   decEq. decEq.  decEq. repeat rewrite Int.add_assoc. decEq. decEq. apply Int.add_commut.
   subst. econstructor.  econstructor.  eauto.  econstructor.  eauto.  econstructor. auto. auto. econstructor. 
   subst. EvalOp; simpl. econstructor. eauto.  econstructor.  eauto.  econstructor.  eauto. by rewrite <-app_nil_end. simpl.  decEq. decEq. decEq. repeat rewrite Int.add_assoc. decEq. apply Int.add_commut.
@@ -339,10 +339,10 @@ Proof.
   subst. EvalOp; simpl. decEq. decEq. repeat rewrite Int.add_assoc. decEq. decEq. 
     rewrite (Int.add_commut n1 n2). apply Int.add_permut.
   subst. EvalOp; simpl. destruct (Genv.find_symbol ge id); inv H0. 
-  decEq. decEq. unfold Ptr.add.  destruct p0.  unfold Ptr.add in H1. clarify. decEq. repeat rewrite Int.add_assoc. decEq.  decEq. apply Int.add_commut.
+  decEq. decEq. unfold MPtr.add.  destruct p0.  unfold MPtr.add in H1. clarify. decEq. repeat rewrite Int.add_assoc. decEq.  decEq. apply Int.add_commut.
   destruct (Genv.find_symbol ge id); inv H0. 
   subst. EvalOp; simpl. destruct (Genv.find_symbol ge id); inv H0. 
-  decEq. decEq. unfold Ptr.add in *.   destruct p0.  clarify. repeat rewrite Int.add_assoc.  decEq. decEq.  decEq. apply Int.add_commut.
+  decEq. decEq. unfold MPtr.add in *.   destruct p0.  clarify. repeat rewrite Int.add_assoc.  decEq. decEq.  decEq. apply Int.add_commut.
   subst. EvalOp.  econstructor. eauto. econstructor. eauto.  econstructor.  auto. by rewrite<-app_nil_end. simpl. done.
   subst. EvalOp; simpl.  econstructor. eauto. econstructor. eauto.  econstructor.  auto. by rewrite<-app_nil_end. simpl. decEq. decEq.  decEq. repeat rewrite Int.add_assoc. auto.
   subst. EvalOp; simpl.  econstructor. eauto. econstructor. eauto.  econstructor.  auto. by rewrite<-app_nil_end. simpl.  decEq. decEq. decEq. repeat rewrite Int.add_assoc. decEq. apply Int.add_commut.
@@ -936,14 +936,14 @@ Theorem eval_comp_ptr_ptr3:
   forall ta tb c a pa b pb v
   (EE1:eval_expr ge sp e ta a (Vptr pa))
   (EE2:eval_expr ge sp e tb b (Vptr pb))
-  (VOB:Val.option_val_of_bool3 (Ptr.cmp c pa pb) = Some v),
+  (VOB:Val.option_val_of_bool3 (MPtr.cmp c pa pb) = Some v),
   eval_expr ge sp e (ta++tb) (comp c a b) v. 
 Proof.
   unfold comp; intros until v.
   case (comp_match a b); intros; InvEval. econstructor.   econstructor.  eauto.  econstructor.  eauto.  econstructor.  eauto.  by rewrite <- app_nil_end. 
 
   simpl. 
-  generalize VOB. destruct (Ptr.cmp c pa pb); simpl; done.
+  generalize VOB. destruct (MPtr.cmp c pa pb); simpl; done.
 Qed.
 
 Theorem eval_compu:

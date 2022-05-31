@@ -162,7 +162,7 @@ Qed.
 Lemma load_eq_preserved_by_free_diff_block:
   forall {c m mx p p' k' m' mx'}
     (Leq: load_ptr c m p = load_ptr c mx p)
-    (DB: Ptr.block p <> Ptr.block p')
+    (DB: MPtr.block p <> MPtr.block p')
     (FP: free_ptr p' k' m = Some m')
     (FPx: free_ptr p' k' mx = Some mx'),
   load_ptr c m' p = load_ptr c mx' p.

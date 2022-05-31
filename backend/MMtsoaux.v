@@ -67,7 +67,7 @@ Definition part_update  (bi : buffer_item)
           else None
     | BufferedFree p MObjStack =>
         match part with 
-          | (p', n') :: part' => if Ptr.eq_dec p p' then Some part' else None
+          | (p', n') :: part' => if MPtr.eq_dec p p' then Some part' else None
           | _ => None
         end
     | BufferedAlloc p n _ => Some part
@@ -262,7 +262,7 @@ Proof.
   Case "buffers_related_sfree".
     eapply buffers_related_sfree; try edone.
     apply IHBR'; try done. 
-    by destruct Ptr.eq_dec.
+    by destruct MPtr.eq_dec.
 
   Case "buffers_related_talloc".
     eapply buffers_related_talloc; try edone.
@@ -272,7 +272,7 @@ Proof.
 
   Case "buffers_related_tfree".
     eapply buffers_related_tfree; try edone.
-    by apply IHBR'; try done; destruct Ptr.eq_dec.
+    by apply IHBR'; try done; destruct MPtr.eq_dec.
 Qed.
 
 Definition range_list_allocated (p : list arange)
@@ -464,7 +464,7 @@ Proof.
 
   simpl. 
   intros [DISJ RNI].
-  destruct (Ptr.eq_dec ph p) as [-> | N]. auto. 
+  destruct (MPtr.eq_dec ph p) as [-> | N]. auto. 
   simpl. split. by apply IH. 
   intros [] IN'. eby eapply RNI, in_range_remove.
 Qed.
@@ -613,7 +613,7 @@ Proof.
       try (by refine (free_ptr_non_stack_preserves_mem_partitioning_upd
                       _ _ _ _ _ _ MRP _ ABI)).
     destruct (part t) as [|[p' n'] l] _eqn:Ep. done.
-    destruct Ptr.eq_dec as [E|]; [|done]. clarify.
+    destruct MPtr.eq_dec as [E|]; [|done]. clarify.
     eby eapply free_ptr_preserves_mem_partitioning.
 Qed.
 
@@ -1007,7 +1007,7 @@ Proof.
     by specialize (RNIN _ IN).      
 
   Case "buffers_related_sfree".
-    simpl. by destruct Ptr.eq_dec. 
+    simpl. by destruct MPtr.eq_dec. 
 Qed.
 
 Lemma range_remove_comm:
@@ -1017,9 +1017,9 @@ Lemma range_remove_comm:
 Proof.
   induction l as [|[pr nr] l IH]. done.
   simpl.
-  by destruct (Ptr.eq_dec pr p') as [<-|N];
-    destruct (Ptr.eq_dec pr p) as [<-|N']; simpl; subst; try done;
-      rewrite IH; (repeat destruct Ptr.eq_dec).
+  by destruct (MPtr.eq_dec pr p') as [<-|N];
+    destruct (MPtr.eq_dec pr p) as [<-|N']; simpl; subst; try done;
+      rewrite IH; (repeat destruct MPtr.eq_dec).
 Qed.
 
 Lemma range_remove_comm_remove_frees:
@@ -1043,7 +1043,7 @@ Lemma range_remove_not_in:
 Proof.
   induction sp as [|[p' n'] sp IH]. done.
   simpl.
-  destruct Ptr.eq_dec as [<- | N]; intros.
+  destruct MPtr.eq_dec as [<- | N]; intros.
     specialize (RNI _ (in_eq _ _)).
     by elim (non_empty_same_ptr_overlap _ _ _ RNE (RNEsp _ (in_eq _ _))).
   f_equal; apply IH.
@@ -1142,10 +1142,10 @@ Proof.
         rewrite tupdate_o; [|intro E; subst]).
     (* Stack *)
     simpl in PU. destruct sp as [|[spp n'] sp]. done.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     subst spp.
     simpl. rewrite range_remove_comm_remove_frees.
-    simpl. destruct Ptr.eq_dec; [|done].
+    simpl. destruct MPtr.eq_dec; [|done].
     rewrite (remove_disjoint RLD RLA).
     destruct r as [rp rn].
     simpl in ABI.
@@ -2013,7 +2013,7 @@ Proof.
     by destruct range_in_dec as [[? [IN O]]|]; eauto.
 
   Case "buffers_related_sfree".
-    simpl. by destruct Ptr.eq_dec.
+    simpl. by destruct MPtr.eq_dec.
     
   Case "buffers_related_talloc".
     inv REL. 
@@ -2354,7 +2354,7 @@ Lemma pointer_in_range_list_in:
     exists n, In (p, n) l.
 Proof.
   intros p. induction l as [|[p' n'] l IH]. done.
-  simpl; destruct (Ptr.eq_dec p p') as [-> | N].
+  simpl; destruct (MPtr.eq_dec p p') as [-> | N].
     intro. eexists. left; reflexivity.
   intro H. destruct (IH H). eexists; right; eassumption.
 Qed.
@@ -2454,7 +2454,7 @@ Proof.
   pose proof (alloc_stack_src_buff_impl_part_update_succ _ _ _ _ _ _ _
     TREL Bs) as PU.
   simpl in PU. destruct (sp t') as [|[px nx] rest] _eqn:Espt'. done.
-  destruct Ptr.eq_dec as [|]; [|done].
+  destruct MPtr.eq_dec as [|]; [|done].
   assert (INPs : In (px, nx) (sp t')). by rewrite Espt'; left.
   apply (FS nx). inv TREL. inv TREL0.
   apply (mrwp_in_alloc MRPs INPs).

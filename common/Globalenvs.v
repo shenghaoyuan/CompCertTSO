@@ -143,14 +143,14 @@ Module Type GENV.
            (ge : t F) (bl : mem_restr) (m : mem) (id : ident) (p: pointer),
       globalenv_initmem prg ge bl m ->
       find_symbol ge id = Some p ->
-        bl (Ptr.block p).
+        bl (MPtr.block p).
 
   Hypothesis find_funct_mem_restr:    
     forall (F V: Type) (prg : program F V)
            (ge : t F) (bl : mem_restr) (m : mem) (f : F) (p: pointer),
       globalenv_initmem prg ge bl m ->
       find_funct_ptr ge p = Some f ->
-        bl (Ptr.block p).
+        bl (MPtr.block p).
 
   Hypothesis initmem_mem_restr:    
     forall (F V : Type) (prg : program F V)
@@ -323,7 +323,7 @@ Inductive genv_inv m ge bl :=
     PTree.get id2 (symbols ge) = Some p ->
     id1 = id2)
   (MR: mrestr m = bl)
-  (MRF: forall p f (FF: find_funct_ptr ge p = Some f), bl (Ptr.block p)),
+  (MRF: forall p f (FF: find_funct_ptr ge p = Some f), bl (MPtr.block p)),
     genv_inv m ge bl.
   
 (*
@@ -418,7 +418,7 @@ Proof.
   split; try done.
   intros [b' ofs'] f' FF. 
   specialize (MRF (Ptr b' ofs') f').  simpl in MRF, FF.
-  destruct (Ptr.eq_dec (Ptr b ofs) (Ptr b' ofs')).
+  destruct (MPtr.eq_dec (Ptr b ofs) (Ptr b' ofs')).
     inv e. by apply range_allocated_consistent_with_restr in RA.
   rewrite ZZMap.gso in FF. auto.
   intro E. elim n. inv E. f_equal. by apply Int.unsigned_eq.
@@ -563,7 +563,7 @@ Proof.
     discriminate.
   
   (* Step case. *)
-  destruct (Ptr.eq_dec pf ptr) as [Eq|Neq].
+  destruct (MPtr.eq_dec pf ptr) as [Eq|Neq].
   rewrite Eq in *. destruct ptr as [b ofs]. destruct fi as [fid fb].
   simpl in FF. rewrite ZZMap.gss in FF. injection FF as Feq. rewrite <- Feq.
   apply (PROP fid fb). apply in_eq.
@@ -597,7 +597,7 @@ Lemma find_symbol_mem_restr:
          (ge : t) (bl : mem_restr) (m : mem) (id : ident) (p: pointer)
     (GIM: globalenv_initmem prg ge bl m)
     (FSY: find_symbol ge id = Some p),
-      bl (Ptr.block p).
+      bl (MPtr.block p).
 Proof.
   intros.
   destruct GIM as [g1 [m1 [AG AF]]].
@@ -612,7 +612,7 @@ Lemma find_funct_mem_restr:
          (ge : t) (bl : mem_restr) (m : mem) (f : F) (p: pointer)
     (GIM: globalenv_initmem prg ge bl m)
     (FF: find_funct_ptr ge p = Some f),
-      bl (Ptr.block p).
+      bl (MPtr.block p).
 Proof.
   intros.
   destruct GIM as [g1 [m1 [AG AF]]].
@@ -810,7 +810,7 @@ Proof.
     destruct (ident_eq id idpfi2) as [Eqid2 | Neqid2].
       rewrite Eqid2, PTree.gss, PTree.gss; done.
     rewrite !PTree.gso; try assumption; apply SY; done.
-  intro v; destruct (Ptr.eq_dec ptr v) as [Eq|Neq].
+  intro v; destruct (MPtr.eq_dec ptr v) as [Eq|Neq].
     rewrite Eq,!find_add_funct_s; done.
   rewrite !find_add_funct_o; try assumption; apply FS; done.
 Qed.
@@ -1231,7 +1231,7 @@ Proof.
     destruct (ident_eq id idpfi2) as [Eqid2 | Neqid2].
       rewrite Eqid2, PTree.gss, PTree.gss; done.
     rewrite !PTree.gso; try assumption; apply SY; done.
-  intro v; destruct (Ptr.eq_dec ptr v) as [Eq|Neq].
+  intro v; destruct (MPtr.eq_dec ptr v) as [Eq|Neq].
     rewrite Eq,!find_add_funct_s; done.
   rewrite !find_add_funct_o; try assumption; apply FS; done.
 Qed.

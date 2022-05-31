@@ -103,11 +103,11 @@ Definition eval_binop
             (op: binary_operation) (arg1 arg2: val): option val :=
   match op, arg1, arg2 with
   | Oadd, Vint n1, Vint n2 => Some (Vint (Int.add n1 n2))
-  | Oadd, Vint n1, Vptr p2 => Some (Vptr (Ptr.add p2 n1))
-  | Oadd, Vptr p1, Vint n2 => Some (Vptr (Ptr.add p1 n2))
+  | Oadd, Vint n1, Vptr p2 => Some (Vptr (MPtr.add p2 n1))
+  | Oadd, Vptr p1, Vint n2 => Some (Vptr (MPtr.add p1 n2))
   | Osub, Vint n1, Vint n2 => Some (Vint (Int.sub n1 n2))
-  | Osub, Vptr p1, Vint n2 => Some (Vptr (Ptr.sub_int p1 n2))
-  | Osub, Vptr p1, Vptr p2 => option_map Vint (Ptr.sub_ptr p1 p2)
+  | Osub, Vptr p1, Vint n2 => Some (Vptr (MPtr.sub_int p1 n2))
+  | Osub, Vptr p1, Vptr p2 => option_map Vint (MPtr.sub_ptr p1 p2)
 (*      if eq_block b1 b2 then Some (Vint (Int.sub n1 n2)) else None *)
   | Omul, Vint n1, Vint n2 => Some (Vint (Int.mul n1 n2))
   | Odiv, Vint n1, Vint n2 =>
@@ -132,7 +132,7 @@ Definition eval_binop
   | Omulf, Vfloat f1, Vfloat f2 => Some (Vfloat (Float.mul f1 f2))
   | Odivf, Vfloat f1, Vfloat f2 => Some (Vfloat (Float.div f1 f2))
   | Ocmp c, Vint n1, Vint n2 => Some (Val.of_bool(Int.cmp c n1 n2))
-  | Ocmp c, Vptr p1, Vptr p2 => Val.option_val_of_bool3 (Ptr.cmp c p1 p2)  (* was Some (Val.of_bool(Ptr.cmp c p1 p2)) *)
+  | Ocmp c, Vptr p1, Vptr p2 => Val.option_val_of_bool3 (MPtr.cmp c p1 p2)  (* was Some (Val.of_bool(MPtr.cmp c p1 p2)) *)
   | Ocmp c, Vptr p1, Vint n2 =>
       eval_compare_null c n2 (* note that pointer is always different from int! *)
                              (* (null is 'Vint 0') *)

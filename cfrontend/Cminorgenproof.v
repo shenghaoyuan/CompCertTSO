@@ -280,7 +280,7 @@ Inductive match_assign_chunk_cont : Cstacked.expr_cont ->
       (SP  : osp = Some sp)
       (MK  : match_cont sk tk xenv),
   match_assign_chunk_cont (Cstacked.EKassign id sk)
-                          (Cminor.EKstoreval c (Vptr (Ptr.add sp (Int.repr ofs))) tk)
+                          (Cminor.EKstoreval c (Vptr (MPtr.add sp (Int.repr ofs))) tk)
                           c osp xenv
 | match_assign_chunk_global: forall sk tk xenv c id p osp
        (CID : (get_cenv sk) !! id = Var_global_scalar c)
@@ -722,7 +722,7 @@ Proof.
       eby rewrite <- (proj1 TRANSF), GFF.
     apply step_weakstep. 
     simpl in *; rewrite GVE in EGS; clarify. 
-    rewrite Ptr.add_zero_r. eby econstructor.
+    rewrite MPtr.add_zero_r. eby econstructor.
   eby intros v' LD; inv LD; 
     [exists (Cstacked.SKval v env k) | exists (Cstacked.SKval Vundef env k)]; 
       split; econstructor; vauto.
@@ -754,8 +754,8 @@ Proof.
   rewrite EGN in VM; inv VM; inv TEX; eexists;
     (split; [eby eapply step_weakstep; constructor; simpl in *; 
       rewrite <- (proj1 TRANSF), GFF|]).
-  eby rewrite Ptr.add_zero_r; econstructor.
-  eby rewrite Ptr.add_zero_r; econstructor.
+  eby rewrite MPtr.add_zero_r; econstructor.
+  eby rewrite MPtr.add_zero_r; econstructor.
 Qed.
 
 Lemma step_var_local_correct:
@@ -862,7 +862,7 @@ Proof.
     eapply steptau_weakstep. constructor.
     eapply steptau_weakstep.
       constructor. simpl.
-      eby rewrite <- (proj1 TRANSF), GVP, Ptr.add_zero_r.
+      eby rewrite <- (proj1 TRANSF), GVP, MPtr.add_zero_r.
     apply step_weakstep. constructor.
   destruct (transl_is_store_arg_dest m EQ) as [-> | [e' [o' (-> & CCE)]]].
     by econstructor; try edone; eapply match_EKassign_chunk; vauto.
@@ -932,7 +932,7 @@ Proof.
           (* Value retrieval *)
           eapply steptau_weakstep. econstructor. eby rewrite PTree.gss.
           (* Finally, do the store *)
-        apply step_weakstep. rewrite Ptr.add_zero_r. by constructor.
+        apply step_weakstep. rewrite MPtr.add_zero_r. by constructor.
         econstructor; try edone.
         intro id'. specialize (ME id').
         destruct (peq id' id) as [-> | N].
@@ -1665,7 +1665,7 @@ Proof.
     eapply steptau_weakstep. constructor. 
     eapply steptau_weakstep. constructor. 
     eapply steptau_weakstep. 
-      constructor. simpl. eby rewrite <- (proj1 TRANSF), GVP, Ptr.add_zero_r.
+      constructor. simpl. eby rewrite <- (proj1 TRANSF), GVP, MPtr.add_zero_r.
     eapply steptau_weakstep. constructor.
     eapply steptau_weakstep. constructor. eby rewrite PTree.gss.
     eapply step_weakstep. constructor.
@@ -2382,7 +2382,7 @@ Proof.
     eapply steptau_weakstep. constructor. 
     eapply steptau_weakstep. constructor. 
     eapply steptau_weakstep. 
-      constructor. simpl. eby rewrite <- (proj1 TRANSF), GVP, Ptr.add_zero_r.
+      constructor. simpl. eby rewrite <- (proj1 TRANSF), GVP, MPtr.add_zero_r.
     eapply steptau_weakstep. constructor.
     eapply steptau_weakstep. constructor. eby rewrite PTree.gss.
     eapply step_weakstep. constructor.

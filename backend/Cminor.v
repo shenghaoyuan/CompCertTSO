@@ -248,11 +248,11 @@ Definition eval_constant (sp: option pointer) (cst: constant) : option val :=
   | Oaddrsymbol s ofs =>
       match Genv.find_symbol ge s with
       | None => None
-      | Some p => Some (Vptr (Ptr.add p ofs))
+      | Some p => Some (Vptr (MPtr.add p ofs))
       end
   | Oaddrstack ofs =>
       match sp with
-      | Some p => Some (Vptr (Ptr.add p ofs))
+      | Some p => Some (Vptr (MPtr.add p ofs))
       | None => None
       end
   end.

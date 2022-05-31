@@ -112,21 +112,21 @@ Inductive frame_match (fr: frame)
                       (sp: pointer) (ms: mem) : Prop :=
   frame_match_intro:
    forall
-     (SMALL: Int.unsigned (Ptr.offset sp) + fsize <= modulus)
+     (SMALL: Int.unsigned (MPtr.offset sp) + fsize <= modulus)
      (* RALLOC: range_allocated (sp, Int.repr fsize) MObjStack ms *)
      (LDREL: forall ty ofs (SV: slot_valid fsize ty ofs),
        exists v,
          load_ptr (chunk_of_type ty) 
                   ms 
-                  (Ptr.add sp (Int.repr ofs)) = Some v /\
+                  (MPtr.add sp (Int.repr ofs)) = Some v /\
          Val.lessdef (fr ty ofs) v),
     frame_match fr sp ms.
 
 Definition load_stack (m: mem) (sp: pointer) (ty: typ) (ofs: int) :=
-  load_ptr (chunk_of_type ty) m (Ptr.add sp ofs).
+  load_ptr (chunk_of_type ty) m (MPtr.add sp ofs).
 
 Definition store_stack (m: mem) (sp: pointer) (ty: typ) (ofs: int) (v: val) :=
-  store_ptr (chunk_of_type ty) m (Ptr.add sp ofs) v.
+  store_ptr (chunk_of_type ty) m (MPtr.add sp ofs) v.
 
 (*
 Variable f: function.
@@ -371,7 +371,7 @@ Qed.
 
 Lemma lb_hb_range_inside:
   forall ofs ty sp
-    (SMALL : Int.unsigned (Ptr.offset sp) + fsize <= modulus)
+    (SMALL : Int.unsigned (MPtr.offset sp) + fsize <= modulus)
     (SV :    slot_valid fsize ty ofs),
   range_inside (range_of_chunk (sp + Int.repr ofs) (chunk_of_type ty))
        (sp, Int.repr fsize).
@@ -507,7 +507,7 @@ Inductive match_stacks (stkr : arange) (sp: pointer) (tm: mem)
       (SZHB: sz + fe_retaddrsize < half_modulus)
       (RI:   range_inside (sp, Int.add rasize (Int.repr sz)) stkr)
       (RA:   load_ptr Mint32 tm sp = Some (Vptr nullptr))
-      (FM:   frame_match sz fr (Ptr.add sp rasize) tm)
+      (FM:   frame_match sz fr (MPtr.add sp rasize) tm)
       (Espart: spart = nil),
       match_stacks stkr sp tm spart nil (Stackbase fr sz)
   | match_stacks_cons: forall fb spo sp' c fr s f ra ts spart' roffs
@@ -516,28 +516,28 @@ Inductive match_stacks (stkr : arange) (sp: pointer) (tm: mem)
       (* and it is well-typed *)
       (WTF:  wt_function f)
       (* the values in the frame match *)
-      (FM:   frame_match f.(fn_framesize) fr (Ptr.add sp rasize) tm)
+      (FM:   frame_match f.(fn_framesize) fr (MPtr.add sp rasize) tm)
       (* the slot for the return address indeed contains the return 
          address *)
       (LDra: load_ptr Mint32 tm sp = Some (Vptr ra))
       (RA:   Asmgenretaddr.return_address_offset f c roffs)
-      (Era:  ra = Ptr (Int.unsigned (Ptr.offset fb)) roffs)
+      (Era:  ra = Ptr (Int.unsigned (MPtr.offset fb)) roffs)
       (* the Machabstr partition contains Machabstr's stack
          (if it is non-empty) *)
       (Espart: spart = 
         if Int.eq_dec f.(fn_stacksize) Int.zero then spart'
-        else (Ptr.add sp  (Int.repr (fe_retaddrsize + f.(fn_framesize))), 
+        else (MPtr.add sp  (Int.repr (fe_retaddrsize + f.(fn_framesize))), 
                            f.(fn_stacksize))::spart')
       (SPM: f.(fn_stacksize) = Int.zero /\ spo = None
-         \/ f.(fn_stacksize) <> Int.zero /\ spo = Some (Ptr.add sp rasize))
+         \/ f.(fn_stacksize) <> Int.zero /\ spo = Some (MPtr.add sp rasize))
       (* the frame region is inside the stack space *)
       (RI :  range_inside (sp, parent_offset f) stkr)
       (* The rest of the stack valid in the properly adjusted 
          stack pointer *)
-      (EQsp': sp' = Ptr.add sp (parent_offset f))
+      (EQsp': sp' = MPtr.add sp (parent_offset f))
       (MS: match_stacks stkr sp' tm spart' ts s),
       match_stacks stkr sp tm spart
-        (Machconcr.Stackframe fb (Ptr.add sp rasize) ra c :: ts)
+        (Machconcr.Stackframe fb (MPtr.add sp rasize) ra c :: ts)
         (Machabstr.Stackframe f spo c fr s).
 
 (** ** Invariant between states. *)
@@ -576,7 +576,7 @@ Inductive match_state :
          (if it is non-empty) *)
       (Espart: spart = 
         if Int.eq_dec f.(fn_stacksize) Int.zero then spart'
-        else (Ptr.add sp  (Int.repr f.(fn_framesize)), f.(fn_stacksize))::spart')
+        else (MPtr.add sp  (Int.repr f.(fn_framesize)), f.(fn_stacksize))::spart')
       (SPM: f.(fn_stacksize) = Int.zero /\ spo = None
          \/ f.(fn_stacksize) <> Int.zero /\ spo = Some sp)
       (* the frame region is inside the stack space *)
@@ -588,10 +588,10 @@ Inductive match_state :
       (* all loads from stkr are defined *)
       (LSV:  load_stkr_valid stkr tm)
       (* stack pointer is properly aligned *)
-      (ALG:  (16 | Int.unsigned (Ptr.offset sp)))
+      (ALG:  (16 | Int.unsigned (MPtr.offset sp)))
       (* The rest of the stack valid in the properly adjusted 
          stack pointer *)
-      (EQsp': sp' = Ptr.add sp (total_framesize f))
+      (EQsp': sp' = MPtr.add sp (total_framesize f))
       (MS: match_stacks stkr sp' tm spart' ts ss),
     match_state 
       (Machconcr.State ts fb sp c stkr rs) (stkr :: nil) tm
@@ -602,7 +602,7 @@ Inductive match_state :
         (VAR:  valid_alloc_range stkr)
         (SRWF: valid_erange stkr)
         (LSV:  load_stkr_valid stkr tm)
-        (ALG:  (16 | Int.unsigned (Ptr.offset sp) + fe_retaddrsize))
+        (ALG:  (16 | Int.unsigned (MPtr.offset sp) + fe_retaddrsize))
         (REGS: regset_lessdef rs' rs)
         (WTF: wt_fundef f)
         (WTS: wt_state (Machabstr.Callstate ss f rs'))
@@ -616,7 +616,7 @@ Inductive match_state :
         (VAR:  valid_alloc_range stkr)
         (SRWF: valid_erange stkr)
         (LSV:  load_stkr_valid stkr tm)
-        (ALG:  (16 | Int.unsigned (Ptr.offset sp) + fe_retaddrsize))
+        (ALG:  (16 | Int.unsigned (MPtr.offset sp) + fe_retaddrsize))
         (WTS: wt_state (Machabstr.Returnstate ss rs'))
         (REGS: regset_lessdef rs' rs),
       match_state
@@ -628,7 +628,7 @@ Inductive match_state :
         (VAR:  valid_alloc_range stkr)
         (SRWF: valid_erange stkr)
         (LSV:  load_stkr_valid stkr tm)
-        (ALG:  (16 | Int.unsigned (Ptr.offset sp) + fe_retaddrsize))
+        (ALG:  (16 | Int.unsigned (MPtr.offset sp) + fe_retaddrsize))
         (WTS: wt_state (Machabstr.Blockedstate ss rs' sig))
         (REGS: regset_lessdef rs' rs),
       match_state 
@@ -661,13 +661,13 @@ Inductive match_state :
         (RI:   range_inside (sp, Int.repr (fe_retaddrsize + sz)) stkr)
         (VAR:  valid_alloc_range stkr)
         (SRWF: valid_erange stkr)
-        (FM:   frame_match sz (build_frame_rec locs1 vs1 empty_frame) (Ptr.add sp rasize) tm)
+        (FM:   frame_match sz (build_frame_rec locs1 vs1 empty_frame) (MPtr.add sp rasize) tm)
         (Ems:  ms = Machabstr.Callstate 
           (Stackbase (build_frame (funsig f) (vs1 ++ vs2)) sz) f 
           (Regmap.init Vundef))
         (WTS:  wt_state ms)
         (LSV:  load_stkr_valid stkr tm)
-        (ALG:  (16 | Int.unsigned (Ptr.offset sp) + fe_retaddrsize)),
+        (ALG:  (16 | Int.unsigned (MPtr.offset sp) + fe_retaddrsize)),
       match_state
         (Machconcr.Initargsstate fb vs2' (map Conventions.parameter_of_argument locs2)  
                                  sp stkr (Regmap.init Vundef)) (stkr::nil) tm
@@ -730,7 +730,7 @@ Lemma aligned_stack_inside:
     (VAR: valid_alloc_range (stkp, Int.repr thread_stack_size))
     (SZ: 4 * sa + fe_retaddrsize + 15 <= thread_stack_size),
    range_inside
-     (Ptr.sub_int (Asm.align_stack
+     (MPtr.sub_int (Asm.align_stack
                        (stkp +
                          Int.repr (thread_stack_size - 4 * sa))) 
                     (Int.repr 4),
@@ -769,7 +769,7 @@ Qed.
 (** Initial stack pointer is aligned. *)
 Lemma align_stack_aligned: 
   forall p,
-    (16 | Int.unsigned (Ptr.offset (Asm.align_stack p))).
+    (16 | Int.unsigned (MPtr.offset (Asm.align_stack p))).
 Proof.
   intros [b ofs]. 
   simpl.
@@ -781,7 +781,7 @@ Qed.
 Lemma align_stack_aligned2:
   forall p, 
     (16
-      | Int.unsigned (Ptr.offset (Ptr.sub_int
+      | Int.unsigned (MPtr.offset (MPtr.sub_int
              (Asm.align_stack p) rasize)) +  fe_retaddrsize).
 Proof.
   intros [b ofs]. simpl.
@@ -795,8 +795,8 @@ Qed.
 (** Return address is properly aligned. *)
 Lemma ra_aligned:
   forall sp
-    (ALG: (16 | Int.unsigned (Ptr.offset sp))),
-    pointer_chunk_aligned (Ptr.sub_int sp rasize) Mint32.   
+    (ALG: (16 | Int.unsigned (MPtr.offset sp))),
+    pointer_chunk_aligned (MPtr.sub_int sp rasize) Mint32.   
 Proof.
   intros [bsp osp] ALG.
   simpl in *.
@@ -984,7 +984,7 @@ Proof.
                Int.unsigned osp + fe_retaddrsize + fn_framesize f).
     pose proof (framesize_small2 _ WTF).
     rewrite Int.add_unsigned, E, Int.unsigned_repr;
-      unfold Ptr.offset, fe_retaddrsize. omega.
+      unfold MPtr.offset, fe_retaddrsize. omega.
     pose proof (Int.unsigned_range osp). split. omega. 
     rewrite (unsigned_parent_offset _ WTF) in LT2.
     pose proof (valid_erange_modulus VE).
@@ -996,7 +996,7 @@ Proof.
     inv WTF. unfold Int.max_unsigned; omega.
   rewrite Efr.
   split.  
-    unfold fe_retaddrsize, Ptr.offset. inv WTF. omega. 
+    unfold fe_retaddrsize, MPtr.offset. inv WTF. omega. 
   rewrite (unsigned_parent_offset _ WTF). inv WTF. omega.
 Qed.
 
@@ -1266,8 +1266,8 @@ Lemma range_disjoint_inside_stkr:
   forall stkr p n n'
     (VE:  valid_erange stkr)
     (RI1: range_inside (p, n) stkr)
-    (RI2: range_inside (Ptr.add p n, n') stkr),
-      ranges_disjoint (p, n) (Ptr.add p n, n').
+    (RI2: range_inside (MPtr.add p n, n') stkr),
+      ranges_disjoint (p, n) (MPtr.add p n, n').
 Proof.
   intros.
   eapply disjoint_inside_disjoint_r.
@@ -1314,7 +1314,7 @@ Proof.
     unfold fe_retaddrsize in *.
     assert (Esptf: ((sp0 + total_framesize f0) + Int.repr 4)%pointer =
                    (sp0 + parent_offset f0)%pointer) by
-      (by destruct sp0; unfold Ptr.add; rewrite Int.add_assoc; f_equal; f_equal;
+      (by destruct sp0; unfold MPtr.add; rewrite Int.add_assoc; f_equal; f_equal;
        unfold parent_offset, Int.add; rewrite (unsigned_total_fsize _ WTF);
        rewrite Int.unsigned_repr; [|compute]).
     rewrite Esptf in *.
@@ -1322,7 +1322,7 @@ Proof.
       split. omega.
       eapply Zlt_trans with half_modulus. omega. by compute.
     destruct (load_ptr (Asm.chunk_of_ty ty) tm 
-                       ((Ptr.add sp0 (parent_offset f0)) + ofs)) as [v'|] _eqn : L.
+                       ((MPtr.add sp0 (parent_offset f0)) + ofs)) as [v'|] _eqn : L.
       (* Load success *)
       destruct (frame_match_get_slot _ FM0 L) 
         as [GS | [v'' (GS & LD')]]; pose proof GS as GS'; 
@@ -1378,13 +1378,13 @@ Proof.
   unfold fe_retaddrsize in *.
   assert (Esptf: ((sp0 + total_framesize f0) + Int.repr 4)%pointer =
                  (sp0 + parent_offset f0)%pointer) by
-    (by destruct sp0; unfold Ptr.add; rewrite Int.add_assoc; f_equal; f_equal;
+    (by destruct sp0; unfold MPtr.add; rewrite Int.add_assoc; f_equal; f_equal;
      unfold parent_offset, Int.add; rewrite (unsigned_total_fsize _ WTF);
      rewrite Int.unsigned_repr; [|compute]).
   rewrite Esptf in *.
   assert (FSS := framesize_small2 _ WTF0).
   destruct (load_ptr (Asm.chunk_of_ty ty) tm 
-                     ((Ptr.add sp0 (parent_offset f0)) + ofs)) as [v'|] _eqn : L.
+                     ((MPtr.add sp0 (parent_offset f0)) + ofs)) as [v'|] _eqn : L.
     (* Load success *)
     destruct (frame_match_get_slot _ FM0 L) 
       as [GS | [v'' (GS & LD')]]; pose proof GS as GS'; 
@@ -1408,13 +1408,13 @@ Proof.
     split. (* chunk not inside source partition *)
       subst. unfold total_framesize, parent_offset in MS.
       rewrite (repr_plus _ fe_retaddrsize), Int.add_commut in MS.
-      rewrite Ptr.add_add_r, <- (Ptr.add_add_r _ _ rasize),
+      rewrite MPtr.add_add_r, <- (MPtr.add_add_r _ _ rasize),
         <- (repr_plus _ fe_retaddrsize) in MS.
       pose proof (slot_chunk_not_inside_spart SRWF RI1 WTF0 SV MS) as RNIsp'.
       assert (Ef: (sp0 + parent_offset f0 + Int.repr (fn_framesize f) = 
                    sp0 + total_framesize f0 + Int.repr (4 + fn_framesize f)) 
                       % pointer).
-        rewrite (repr_plus 4), Ptr.add_add_r, <- (Ptr.add_add_r _ _ (Int.repr 4)).
+        rewrite (repr_plus 4), MPtr.add_add_r, <- (MPtr.add_add_r _ _ (Int.repr 4)).
         unfold parent_offset, fe_retaddrsize. by rewrite repr_plus.
       rewrite Ef in RNIsp'.
       destruct (Int.eq_dec (fn_stacksize f0) Int.zero). done.       
@@ -1528,20 +1528,20 @@ Lemma mcall_sim:
   (GFF : Genv.find_funct_ptr ge fb = Some (Internal f))
   (RA : Asmgenretaddr.return_address_offset f c roffs)
   (MS : match_state (State s fb sp0 (Mcall sig ros :: c) stkr rs) tp tm ss sp)
-  (RI : range_inside (Ptr.sub_int sp0 rasize, Int.zero) stkr),
+  (RI : range_inside (MPtr.sub_int sp0 rasize, Int.zero) stkr),
    write_simulation Machabstr.state state (ma_step ge) match_state
      (ltof state measure) ss (State s fb sp0 (Mcall sig ros :: c) stkr rs)
      (Callstate
-        (Stackframe fb sp0 (Ptr (Int.unsigned (Ptr.offset fb)) roffs) c :: s)
-        f' (Ptr.sub_int sp0 rasize) stkr rs) tm sp tp
-     (Ptr.sub_int sp0 rasize) Mint32
-     (Vptr (Ptr (Int.unsigned (Ptr.offset fb)) roffs)).
+        (Stackframe fb sp0 (Ptr (Int.unsigned (MPtr.offset fb)) roffs) c :: s)
+        f' (MPtr.sub_int sp0 rasize) stkr rs) tm sp tp
+     (MPtr.sub_int sp0 rasize) Mint32
+     (Vptr (Ptr (Int.unsigned (MPtr.offset fb)) roffs)).
 Proof.
   intros.
   inv MS.
   destruct (find_function ge ros rs') as [f''|] _eqn : FF'';
     [| left; left; intros s' l ST'; inv ST'; clarify']. 
-  assert (RI1: range_inside (Ptr.sub_int sp0 rasize, rasize)
+  assert (RI1: range_inside (MPtr.sub_int sp0 rasize, rasize)
                        stkr).
     eapply range_inside_endpoints_sub2; ri_res.
   right; left. 
@@ -1570,12 +1570,12 @@ Proof.
     unfold range_of_chunk.
     eapply ranges_disjoint_range_sp_sub; ri_res.
   pose proof (LSV _ _ (ra_aligned _ ALG) RI1) as L.
-  pose proof (load_chunk_allocated_spec Mint32 tm (Ptr.sub_int sp0 rasize)).
-  pose proof (store_chunk_allocated_spec Mint32 tm (Ptr.sub_int sp0 rasize)
-    (Vptr (Ptr (Int.unsigned (Ptr.offset fb)) roffs))).
+  pose proof (load_chunk_allocated_spec Mint32 tm (MPtr.sub_int sp0 rasize)).
+  pose proof (store_chunk_allocated_spec Mint32 tm (MPtr.sub_int sp0 rasize)
+    (Vptr (Ptr (Int.unsigned (MPtr.offset fb)) roffs))).
   destruct load_ptr; [|done].
-  destruct (store_ptr Mint32 tm (Ptr.sub_int sp0 rasize)
-       (Vptr (Ptr (Int.unsigned (Ptr.offset fb)) roffs))) as [tm'|] _eqn:S;
+  destruct (store_ptr Mint32 tm (MPtr.sub_int sp0 rasize)
+       (Vptr (Ptr (Int.unsigned (MPtr.offset fb)) roffs))) as [tm'|] _eqn:S;
    [|done].
   exists tm'. split. done.
   left.
@@ -1588,19 +1588,19 @@ Proof.
   rewrite (find_function_find_function_ptr _ _ _ FF) in FFX.
   econstructor; try done.
   (* Stack match *)
-  assert (Esp0: sp0 = Ptr.add (Ptr.sub_int sp0 rasize) rasize)
-    by (by rewrite Ptr.add_sub_l, Int.sub_idem, Ptr.add_zero_r).
+  assert (Esp0: sp0 = MPtr.add (MPtr.sub_int sp0 rasize) rasize)
+    by (by rewrite MPtr.add_sub_l, Int.sub_idem, MPtr.add_zero_r).
   rewrite Esp0 at 2; clear Esp0.
   assert (Epo : parent_offset f0 = Int.add (total_framesize f0) rasize).
     rewrite Int.add_unsigned, (unsigned_total_fsize _ WTF). 
     unfold parent_offset. by rewrite Int.unsigned_repr; [|compute].  
-  assert (RI2 : range_inside (Ptr.sub_int sp0 rasize, parent_offset f0) stkr).
+  assert (RI2 : range_inside (MPtr.sub_int sp0 rasize, parent_offset f0) stkr).
     rewrite Epo.
     eapply range_inside_sub_add2.
     rewrite (unsigned_total_fsize _ WTF). inv WTF. rewrite Int.unsigned_repr; [|by compute].
     omega. edone. edone.       
   eapply match_stacks_cons; try edone.
-  - rewrite Ptr.add_sub_l, Int.sub_idem, Ptr.add_zero_r. 
+  - rewrite MPtr.add_sub_l, Int.sub_idem, MPtr.add_zero_r. 
     eapply frame_match_store_other. apply (framesize_small2 _ WTF).
     edone. edone.
     eapply disjoint_inside_disjoint_r, (frame_inside_tframe _ sp0 WTF).
@@ -1610,13 +1610,13 @@ Proof.
   - by clarify'. 
   - replace (Int.repr (fe_retaddrsize + fn_framesize f0)) with
             (Int.add rasize (Int.repr (fn_framesize f0))).
-      eby rewrite Ptr.add_sub_l, Int.sub_add_l, Int.sub_idem, 
+      eby rewrite MPtr.add_sub_l, Int.sub_add_l, Int.sub_idem, 
         Int.add_commut, Int.add_zero.
     unfold Int.add. rewrite unsigned_rasize. 
     by rewrite (unsigned_fsize _ WTF).
-  - by rewrite Ptr.add_sub_l, Int.sub_idem, Ptr.add_zero_r.
+  - by rewrite MPtr.add_sub_l, Int.sub_idem, MPtr.add_zero_r.
   - eapply match_stack_other; try edone. 
-    by rewrite Epo, Ptr.add_sub_l, Int.add_commut, Int.sub_add_l, 
+    by rewrite Epo, MPtr.add_sub_l, Int.add_commut, Int.sub_add_l, 
       Int.sub_idem, Int.add_commut, Int.add_zero. 
     eapply disjoint_inside_disjoint_l.
     eapply ranges_disjoint_range_sp_add2. edone. edone. 
@@ -1637,8 +1637,8 @@ Qed.
 
 Lemma align_mreturn:
   forall sp f (WT : wt_function f)
-   (ALG : (16 | Int.unsigned (Ptr.offset sp))),
-   (16 | Int.unsigned (Ptr.offset (sp + total_framesize f)%pointer) +
+   (ALG : (16 | Int.unsigned (MPtr.offset sp))),
+   (16 | Int.unsigned (MPtr.offset (sp + total_framesize f)%pointer) +
      fe_retaddrsize).
 Proof.
   intros [b ofs] ? ? ?.
@@ -1652,8 +1652,8 @@ Qed.
 
 Lemma align_call:
   forall sp f (WT : wt_function f)
-  (ALG : (16 | Int.unsigned (Ptr.offset sp) + fe_retaddrsize)),
-   (16 | Int.unsigned (Ptr.offset (Ptr.sub_int sp (total_framesize f)))).
+  (ALG : (16 | Int.unsigned (MPtr.offset sp) + fe_retaddrsize)),
+   (16 | Int.unsigned (MPtr.offset (MPtr.sub_int sp (total_framesize f)))).
 Proof.
   intros [b ofs] ? ? ?.
   simpl in *. assert (16 | modulus) by (by apply Zmod_divide; compute).
@@ -1673,9 +1673,9 @@ Qed.
 
 Lemma slot_aligned:
   forall p f ty ofs
-  (ALG' : (16 | Int.unsigned (Ptr.offset p)))
+  (ALG' : (16 | Int.unsigned (MPtr.offset p)))
   (SV : slot_valid f ty ofs),
-   pointer_chunk_aligned (Ptr.add p (Int.repr ofs)) (chunk_of_type ty).
+   pointer_chunk_aligned (MPtr.add p (Int.repr ofs)) (chunk_of_type ty).
 Proof.
   intros. inv SV. destruct p; simpl in *. 
   apply Zdivide_mod in ALG'. apply Zdivide_mod in ALG.
@@ -1703,9 +1703,9 @@ Lemma valid_alloc_range_inside:
   (SRWF: valid_erange stkr)
   (RIS : range_inside (sp, total_framesize f) stkr)
   (WT  : wt_function f)
-  (ALG : (16 | Int.unsigned (Ptr.offset sp)))
+  (ALG : (16 | Int.unsigned (MPtr.offset sp)))
   (NZ  : fn_stacksize f <> Int.zero),
-    valid_alloc_range (Ptr.add sp (Int.repr (fn_framesize f)), fn_stacksize f).
+    valid_alloc_range (MPtr.add sp (Int.repr (fn_framesize f)), fn_stacksize f).
 Proof.
   intros. destruct stkr as [[bs os] ns].
   destruct sp.
@@ -1730,7 +1730,7 @@ Qed.
 Lemma function_internal_sim:
   forall fb f sp0 sp' stkr rs tp tm ss sp s
     (GFF : Genv.find_funct_ptr ge fb = Some (Internal f))
-    (Esp': sp' = Ptr.sub_int sp0 (total_framesize f))
+    (Esp': sp' = MPtr.sub_int sp0 (total_framesize f))
     (RI':  range_inside (sp', Int.zero) stkr)
     (MS:   match_state (Callstate s fb sp0 stkr rs) tp tm ss sp),
   tau_simulation Machabstr.state state (ma_step ge) match_state
@@ -1740,18 +1740,18 @@ Proof.
   intros.
   inv MS. rewrite FIND in GFF; inv GFF.
   inversion WTF as [|f' WT E]. subst.
-  assert(RIS: range_inside (Ptr.sub_int sp0 (total_framesize f),
+  assert(RIS: range_inside (MPtr.sub_int sp0 (total_framesize f),
                             total_framesize f) stkr).
     eapply range_inside_endpoints_sub2; try done.
       inv STACKS; eby eapply range_inside_bottom.
     rewrite (unsigned_total_fsize _ WT).
     inv WT. unfold fe_retaddrsize in *. omega.
-  assert (MM: Int.unsigned (Ptr.offset (Ptr.sub_int sp0 (total_framesize f))) +
+  assert (MM: Int.unsigned (MPtr.offset (MPtr.sub_int sp0 (total_framesize f))) +
               fn_framesize f <= modulus).
-    unfold Ptr.offset, Ptr.sub_int.
+    unfold MPtr.offset, MPtr.sub_int.
     destruct sp0. destruct stkr as [[bs os] ns]. 
     destruct RIS as [-> [(E1 & E2 & E3) | ?]].
-      unfold Ptr.offset, Ptr.sub_int. rewrite E1. 
+      unfold MPtr.offset, MPtr.sub_int. rewrite E1. 
       pose proof (framesize_small2 _ WT). omega.
     pose proof (valid_erange_modulus SRWF).
     assert (fn_framesize f <= Int.unsigned (total_framesize f)).
@@ -1771,10 +1771,10 @@ Proof.
       constructor. done.
       intros ty ofs SV. 
       destruct (load_ptr (chunk_of_type ty) tm
-        (Ptr.sub_int sp0 (total_framesize f) + Int.repr ofs)) as [] _eqn:L.
+        (MPtr.sub_int sp0 (total_framesize f) + Int.repr ofs)) as [] _eqn:L.
         eby eexists.
       pose proof (lb_hb_range_inside _ (framesize_small2 _ WT) _ _ _ MM SV).
-      exploit (LSV (Ptr.add (Ptr.sub_int sp0 (total_framesize f)) (Int.repr ofs))
+      exploit (LSV (MPtr.add (MPtr.sub_int sp0 (total_framesize f)) (Int.repr ofs))
                    (chunk_of_type ty)).
         eby eapply slot_aligned.
       eapply range_inside_trans. 
@@ -1785,10 +1785,10 @@ Proof.
     - (* stack partition does not change *)
       destruct Int.eq_dec. reflexivity. done.
     - (* match stacks *)
-      eby rewrite Ptr.add_sub_l, Int.sub_idem, Ptr.add_zero_r.
+      eby rewrite MPtr.add_sub_l, Int.sub_idem, MPtr.add_zero_r.
   (* stacksize not zero (need to free in Machabstr *)
   right. right. right. left.
-  exists (Ptr.add (Ptr.sub_int sp0 (total_framesize f)) (Int.repr (fn_framesize f))). 
+  exists (MPtr.add (MPtr.sub_int sp0 (total_framesize f)) (Int.repr (fn_framesize f))). 
   exists (fn_stacksize f).
   split. (* valid allocation range *)
     eby eapply valid_alloc_range_inside.
@@ -1802,17 +1802,17 @@ Proof.
     pose proof (match_stack_inside SRWF STACKS) as RLIR.
     intros r' IN'. specialize (RLIR _ IN').
     eapply disjoint_inside_disjoint_r, RLIR.
-    assert (RI1: range_inside ((Ptr.sub_int sp0 
+    assert (RI1: range_inside ((MPtr.sub_int sp0 
       (total_framesize f) + Int.repr (fn_framesize f))%pointer,
         fn_stacksize f) 
-      (Ptr.sub_int sp0 (total_framesize f), total_framesize f)).
+      (MPtr.sub_int sp0 (total_framesize f), total_framesize f)).
       eapply range_inside_subrange. ri_res.
       rewrite (unsigned_total_fsize _ WT), (unsigned_fsize _ WT).
       by inv WT; omega.
     eapply disjoint_inside_disjoint_l, RI1.
-    assert (Esp0 : sp0 = (Ptr.add (Ptr.sub_int sp0 (total_framesize f))
+    assert (Esp0 : sp0 = (MPtr.add (MPtr.sub_int sp0 (total_framesize f))
                                (total_framesize f))).
-      by rewrite <- Ptr.add_sub_r, Int.sub_idem, Ptr.add_zero_r.
+      by rewrite <- MPtr.add_sub_r, Int.sub_idem, MPtr.add_zero_r.
     rewrite Esp0 at 2.
     eby eapply ranges_disjoint_range_sp_add2. 
   eapply sim_wt_aux. done.
@@ -1824,10 +1824,10 @@ Proof.
     constructor. done.
     intros ty ofs SV. 
     destruct (load_ptr (chunk_of_type ty) tm
-      (Ptr.sub_int sp0 (total_framesize f) + Int.repr ofs)) as [] _eqn:L.
+      (MPtr.sub_int sp0 (total_framesize f) + Int.repr ofs)) as [] _eqn:L.
       eby eexists.
     pose proof (lb_hb_range_inside _ (framesize_small2 _ WT) _ _ _ MM SV).
-    exploit (LSV (Ptr.add (Ptr.sub_int sp0 (total_framesize f)) (Int.repr ofs))
+    exploit (LSV (MPtr.add (MPtr.sub_int sp0 (total_framesize f)) (Int.repr ofs))
                  (chunk_of_type ty)).
       eby eapply slot_aligned.
     eapply range_inside_trans. 
@@ -1838,9 +1838,9 @@ Proof.
   - (* stack partition does not change *)
     destruct Int.eq_dec; [contradiction|reflexivity].
   - right. split. done.
-    by rewrite !Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r.
+    by rewrite !MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r.
   - (* match stacks *)
-    eby rewrite Ptr.add_sub_l, Int.sub_idem, Ptr.add_zero_r.
+    eby rewrite MPtr.add_sub_l, Int.sub_idem, MPtr.add_zero_r.
 Qed.
 
 Lemma ra_inside_ret:
@@ -1874,19 +1874,19 @@ Lemma return_range_not_in:
 Proof.
   intros.
   assert(RLIR := match_stack_inside SRWF MS).
-  assert(RI': range_inside (Ptr.add sp0 rasize, total_framesize f0) 
+  assert(RI': range_inside (MPtr.add sp0 rasize, total_framesize f0) 
                            (sp0, parent_offset f0)).
     eapply range_inside_subrange. ri_res. 
     rewrite unsigned_rasize, (unsigned_total_fsize _ WTF), 
       (unsigned_parent_offset _ WTF). omega.
   assert(RLIR1 : range_list_in_range spart' 
-    (range_sp stkr (Ptr.add sp0 rasize))).
+    (range_sp stkr (MPtr.add sp0 rasize))).
     intros r IN. 
     eapply range_inside_trans. apply (RLIR r IN).
-    replace (Ptr.add sp0 (parent_offset f0)) 
-       with (Ptr.add (Ptr.add sp0 rasize) (total_framesize f0)).
+    replace (MPtr.add sp0 (parent_offset f0)) 
+       with (MPtr.add (MPtr.add sp0 rasize) (total_framesize f0)).
       eapply range_sp_inside_range_sp_add2; ri_res.
-    rewrite !Ptr.add_add_l, Int.add_unsigned, (unsigned_total_fsize _ WTF).
+    rewrite !MPtr.add_add_l, Int.add_unsigned, (unsigned_total_fsize _ WTF).
     unfold parent_offset; f_equal; f_equal; rewrite unsigned_rasize; omega.
   assert(RLIR2: range_list_in_range
     (if Int.eq_dec (fn_stacksize f0) Int.zero
@@ -1895,13 +1895,13 @@ Proof.
       ((sp0 + Int.repr (fe_retaddrsize + fn_framesize f0))%pointer, 
         fn_stacksize f0)
       :: spart')
-       (range_sp stkr (Ptr.add sp0 rasize))).
+       (range_sp stkr (MPtr.add sp0 rasize))).
     destruct Int.eq_dec. done.
     intros r IN. destruct (in_inv IN) as [<- | IN']; eauto.
     replace (Int.repr (fe_retaddrsize + fn_framesize f0)) with
             (Int.add rasize (Int.repr f0.(fn_framesize))) by
       (by rewrite Int.add_unsigned, unsigned_rasize, (unsigned_fsize _ WTF)).
-    rewrite <- Ptr.add_add_l.
+    rewrite <- MPtr.add_add_l.
     eapply range_inside_trans with (sp0 + rasize, total_framesize f0)%pointer.
       eapply range_inside_subrange. ri_res.
       rewrite (unsigned_fsize _ WTF), (unsigned_total_fsize _ WTF).
@@ -1942,7 +1942,7 @@ Proof.
     apply step_taustep. simpl. 
     eby eapply Machabstr.exec_return; eauto. 
   intro; econstructor; try edone. 
-  - rewrite Ptr.add_add_l.
+  - rewrite MPtr.add_add_l.
     unfold Int.add. rewrite (unsigned_fsize _ WTF).
     eby rewrite Int.unsigned_repr; [|by compute].
   - eapply range_inside_trans, RI.
@@ -1953,7 +1953,7 @@ Proof.
     destruct sp0; simpl in ALG |- *.
     assert (16 | modulus) by (by apply Zmod_divide; compute).
     by rewrite <- Zmod_div_mod.
-  - by rewrite Ptr.add_add_l, Int.add_commut, Int.add_unsigned, 
+  - by rewrite MPtr.add_add_l, Int.add_commut, Int.add_unsigned, 
       (unsigned_total_fsize _ WTF), Int.unsigned_repr; [|by compute].
 Qed. 
 
@@ -2157,7 +2157,7 @@ Proof.
     split; [|done].
     apply match_states_call; try done.
       apply match_stacks_nil;
-        try rewrite Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r; try done.
+        try rewrite MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r; try done.
       - omega.
       - replace  (Int.add rasize (Int.repr (4 * Conventions.size_arguments (funsig f))))
            with (Int.repr (fe_retaddrsize + 4 * Conventions.size_arguments (funsig f))). done.
@@ -2391,7 +2391,7 @@ Proof.
             eapply range_inside_subrange. ri_res.
             unfold fe_retaddrsize; rewrite (unsigned_4sz sz), unsigned_4, (unsigned_sz sz); 
               try done; omega.
-          assert (RI1: range_inside (range_of_chunk p c) (Ptr.add sp0 rasize, Int.repr sz)).
+          assert (RI1: range_inside (range_of_chunk p c) (MPtr.add sp0 rasize, Int.repr sz)).
             eby eapply extcall_args_inside_base.
           split. 
             simpl. destruct range_inside_dec. done. 
@@ -2431,7 +2431,7 @@ Proof.
         assert(RIf: range_inside ((sp0 + rasize)%pointer, Int.repr (fn_framesize f)) stkr).
           by eapply range_inside_trans, RI.
         assert(RI1: range_inside (range_of_chunk p' c') 
-                                 (Ptr.add sp0 rasize, Int.repr f.(fn_framesize))).
+                                 (MPtr.add sp0 rasize, Int.repr f.(fn_framesize))).
           eapply extcall_args_inside_base; try edone.
           by inv WTF0; omega.
           by inv WTF0; unfold fe_retaddrsize in *; omega.
@@ -2442,13 +2442,13 @@ Proof.
         replace (Int.repr (fe_retaddrsize + f.(fn_framesize))) with
                 (Int.add rasize (Int.repr f.(fn_framesize)))
           by (by rewrite <- (unsigned_repr_ra_plus_fs _ WTF0), Int.repr_unsigned).
-        rewrite <- Ptr.add_add_l.
+        rewrite <- MPtr.add_add_l.
         eapply chunk_not_inside_spart; try edone.
           eapply range_inside_trans, RI.
           eapply range_inside_subrange. ri_res.
           rewrite (unsigned_parent_offset _ WTF0), (unsigned_total_fsize _ WTF0), 
             unsigned_rasize; omega.
-          rewrite Ptr.add_add_l.
+          rewrite MPtr.add_add_l.
           replace (Int.add rasize (total_framesize f)) with
             (parent_offset f). edone.
           unfold parent_offset, Int.add. 
@@ -2574,7 +2574,7 @@ Lemma initalloc_sim:
    alloc_simulation Machabstr.state state (ma_step ge) match_state
      (ltof state measure) ss (Initstate pfn args)
      (Initargsstate pfn args (Conventions.loc_parameters (funsig fn))
-        (Ptr.sub_int sp0 rasize) (stkp, Int.repr thread_stack_size)
+        (MPtr.sub_int sp0 rasize) (stkp, Int.repr thread_stack_size)
         (Regmap.init Vundef)) tm sp tp stkp (Int.repr thread_stack_size)
      MObjStack.
 Proof.
@@ -2614,20 +2614,20 @@ Proof.
       assert(RI': range_inside (p, Int.repr (4 * Conventions.size_arguments (funsig f)))
                  (stkp, Int.repr thread_stack_size)).
         eapply range_inside_trans, RI.
-        assert (Ep: p = Ptr.add (Ptr.sub_int p (Int.repr 4)) (Int.repr 4)).
-          by rewrite <- Ptr.add_sub_r, Int.sub_idem, Ptr.add_zero_r.
+        assert (Ep: p = MPtr.add (MPtr.sub_int p (Int.repr 4)) (Int.repr 4)).
+          by rewrite <- MPtr.add_sub_r, Int.sub_idem, MPtr.add_zero_r.
         rewrite Ep at 1; clear Ep.
         apply range_inside_subrange. ri_res.
         rewrite Eusra, unsigned_4, Eusa.
         by unfold fe_retaddrsize; omega.
       pose proof (range_inside_valide _ _ RI' VE) as VE'.
-      rewrite <- Ptr.add_sub_r, Int.sub_idem, Ptr.add_zero_r.
+      rewrite <- MPtr.add_sub_r, Int.sub_idem, MPtr.add_zero_r.
       destruct p; apply valid_erange_modulus in VE'. by rewrite <- Eusa.
     intros ty ofs SV. 
     eexists. 
     rewrite (load_alloc_inside A). split. edone. by constructor.
       eapply range_inside_trans, RI.
-      rewrite <- Ptr.add_add_r.
+      rewrite <- MPtr.add_add_r.
       apply range_inside_subrange. ri_res.
       inv SV.
       rewrite Eusra, size_chunk_repr.
@@ -2640,7 +2640,7 @@ Proof.
         destruct ty; unfold typesize, size_chunk, chunk_of_type in *; omega. 
       rewrite Eusra in H. unfold Int.max_unsigned. split. omega. 
       destruct ty; unfold typesize in HB; omega.
-    rewrite <- Ptr.add_sub_r, Int.sub_idem, Ptr.add_zero_r.
+    rewrite <- MPtr.add_sub_r, Int.sub_idem, MPtr.add_zero_r.
     eapply slot_aligned. apply align_stack_aligned. edone.
   - edone.
   - constructor.
@@ -2715,7 +2715,7 @@ Proof.
   - edone.
   intros [tm' (S & FM')]. 
   right. left.
-  assert (RI1: range_inside (Ptr.add sp0 rasize, 
+  assert (RI1: range_inside (MPtr.add sp0 rasize, 
                              Int.repr (4 * Conventions.size_arguments (funsig f)))     
                             stkr).
     eapply range_inside_trans, RI.
@@ -2728,12 +2728,12 @@ Proof.
   
   split.
     simpl. destruct range_inside_dec as [|n]; try done; elim n.
-    rewrite Zplus_comm, repr_plus, Ptr.add_add_r.
+    rewrite Zplus_comm, repr_plus, MPtr.add_add_r.
     eby eapply range_inside_trans. 
   split. done.  
   exists tm'. split. 
     unfold store_stack in S. 
-    eby rewrite Zplus_comm, repr_plus, Ptr.add_add_r. 
+    eby rewrite Zplus_comm, repr_plus, MPtr.add_add_r. 
   right.
   split. 
   replace (vs1 ++ v :: vrest) with ((vs1 ++ v :: nil) ++ vrest)
@@ -3116,7 +3116,7 @@ Proof.
     replace (Int.repr (fe_retaddrsize + f.(fn_framesize))) with
             (Int.add rasize (Int.repr f.(fn_framesize)))
       by (by rewrite <- (unsigned_repr_ra_plus_fs _ WTF), Int.repr_unsigned).
-    rewrite <- Ptr.add_add_l.
+    rewrite <- MPtr.add_add_l.
     apply range_not_in_app.
     eapply range_not_in_inside. edone.
     eapply range_inside_trans. edone.
@@ -3126,7 +3126,7 @@ Proof.
     eapply chunk_not_inside_spart; try edone. ri_res.
     replace ((sp + rasize) + total_framesize f)%pointer with 
             (sp + parent_offset f)%pointer. edone.
-    rewrite Ptr.add_add_l. 
+    rewrite MPtr.add_add_l. 
     f_equal. unfold parent_offset, Int.add. f_equal.
     rewrite unsigned_total_fsize, unsigned_rasize; try done; omega.
   (* return address *)
@@ -3161,7 +3161,7 @@ Proof.
       subst sp'. 
       eapply ranges_disjoint_comm, ranges_disjoint_range_sp_add2; ri_res.
     eapply range_inside_trans; [|eapply tframe_inside_po; ri_res].
-    rewrite repr_plus, <- Ptr.add_add_l.
+    rewrite repr_plus, <- MPtr.add_add_l.
     eapply range_inside_subrange. ri_res.
     rewrite unsigned_total_fsize, unsigned_fsize; try done.
     inv WTF. omega.
@@ -3264,10 +3264,10 @@ Proof.
   destruct a. 
   simpl; destruct (IHsig_args (z + 1)) as [ema' E].
   rewrite <- E. 
-  by exists (inl eventval (Ptr.add sp (Int.repr (4*z)), Mint32) :: ema').
+  by exists (inl eventval (MPtr.add sp (Int.repr (4*z)), Mint32) :: ema').
   simpl; destruct (IHsig_args (z + 2)) as [ema' E].
   rewrite <- E. 
-  by exists (inl eventval (Ptr.add sp (Int.repr (4*z)), Mfloat64) :: ema').
+  by exists (inl eventval (MPtr.add sp (Int.repr (4*z)), Mfloat64) :: ema').
 Qed.
 
 Require Import Asmgenretaddr.
@@ -3291,7 +3291,7 @@ Proof.
     eexists. eexists.
     eapply exec_Mgetstack with (v := v'); try edone.
     unfold load_stack, load_ptr, load in L.
-    destruct (Ptr.add sp1 ofs). destruct in_block; [|done].
+    destruct (MPtr.add sp1 ofs). destruct in_block; [|done].
     inv L.
     apply Val.load_result_wt.
  
@@ -3337,7 +3337,7 @@ Proof.
     inv MS.
     destruct (find_function_find_function_ptr_bw _ _ _ FF) as (? & ? & ?).
     inv WTS. destruct (return_address_exists _ _ (is_tail_cons_left TAIL)). 
-    destruct (range_inside_dec (Ptr.sub_int sp1 rasize, Int.zero) stkr).
+    destruct (range_inside_dec (MPtr.sub_int sp1 rasize, Int.zero) stkr).
       eexists; eexists; eapply exec_Mcall; try edone.
       eby eapply find_function_ptr_lessdef.
     eexists; eexists; eapply exec_Mcall_oom; try edone.
@@ -3373,7 +3373,7 @@ Proof.
   Case "exec_function_internal_empty".
     inv MS.
     (* Standard call *)
-    destruct (range_inside_dec (Ptr.sub_int sp0 (total_framesize f), Int.zero) 
+    destruct (range_inside_dec (MPtr.sub_int sp0 (total_framesize f), Int.zero) 
                            stkr).
       eby eexists; eexists; eapply exec_function_internal.
     eby eexists; eexists; eapply exec_function_internal_oom.
@@ -3398,7 +3398,7 @@ Proof.
   Case "exec_function_internal_nonempty".
     inv MS.
     (* Standard call *)
-    destruct (range_inside_dec (Ptr.sub_int sp0 (total_framesize f), Int.zero) 
+    destruct (range_inside_dec (MPtr.sub_int sp0 (total_framesize f), Int.zero) 
                            stkr).
       eby eexists; eexists; eapply exec_function_internal.
     eby eexists; eexists; eapply exec_function_internal_oom.
@@ -3422,7 +3422,7 @@ Proof.
 
   Case "exec_function_external_call".
     inv MS.
-    destruct (exists_ema rs (Ptr.add sp0 rasize) (ef_sig ef)).
+    destruct (exists_ema rs (MPtr.add sp0 rasize) (ef_sig ef)).
     eby eexists; eexists; eapply exec_function_external_call.
     (* Initialisation alloc *)
     destruct (Z_le_dec (4 * Conventions.size_arguments (funsig (External ef)) + 

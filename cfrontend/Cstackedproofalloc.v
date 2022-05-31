@@ -213,7 +213,7 @@ Proof.
   - replace tpr with (range_remove p (tp t)).
     eapply free_ptr_preserves_mem_partitioning; try edone. 
     eexists; rewrite TP; apply in_eq.
-    rewrite TP. simpl. by destruct Ptr.eq_dec.
+    rewrite TP. simpl. by destruct MPtr.eq_dec.
   - intros t'.
     destruct (TREL t') as [PI BREL].
     split.
@@ -1284,7 +1284,7 @@ Proof.
     destruct (proj2 (proj2 (proj2 MRWPs) _) RA') as [tr INPs].
     pose proof (proj2 (proj2 SAF) tr t') as DISJ.
     rewrite Bs in DISJ. simpl in DISJ.
-    destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR.
+    destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR.
       destruct pi; simpl in *; rewrite LMR in *; done.
     specialize (DISJ _ (in_eq _ _) _ INPs).
     eby eapply ranges_disjoint_dont_overlap.
@@ -1393,7 +1393,7 @@ Fixpoint ranges_of_vars (vars: list (ident * var_kind))
             end
           | Var_stack_scalar c' offs => 
             match ranges_of_vars r cenv scratch_block bp with
-              | Some rb => Some ((Ptr.add bp (Int.repr offs),
+              | Some rb => Some ((MPtr.add bp (Int.repr offs),
                                   Int.repr (size_chunk c)) :: rb)
               | None => None
             end
@@ -1403,7 +1403,7 @@ Fixpoint ranges_of_vars (vars: list (ident * var_kind))
         match PMap.get vid cenv with
           | Var_stack_array offs => 
             match ranges_of_vars r cenv scratch_block bp with
-              | Some rb => Some ((Ptr.add bp (Int.repr offs), 
+              | Some rb => Some ((MPtr.add bp (Int.repr offs), 
                                   Int.repr (Zmax 1 sz)) :: rb)
               | None => None
             end
@@ -1585,7 +1585,7 @@ Qed.
 Lemma ranges_of_vars_succ:
   forall ids vars ge n sbp bp cenv fsize,
   NoDup (map get_name vars) ->
-  Ptr.block bp < sbp ->
+  MPtr.block bp < sbp ->
   assign_variables ids vars (ge, n) = (cenv, fsize) ->
   0 <= n ->
   fsize <= Int.max_unsigned ->
@@ -1595,9 +1595,9 @@ Lemma ranges_of_vars_succ:
     range_list_disjoint rs /\
     (forall r, In r rs -> valid_alloc_range r) /\
     forall r, In r rs -> range_inside r (bp, Int.repr fsize) /\
-                          (Int.unsigned (Ptr.offset bp) + n <= 
-                           Int.unsigned (Ptr.offset (fst r))) \/
-                          Ptr.block (fst r) >= sbp.
+                          (Int.unsigned (MPtr.offset bp) + n <= 
+                           Int.unsigned (MPtr.offset (fst r))) \/
+                          MPtr.block (fst r) >= sbp.
 Proof.
   intros ids vars.
   induction vars as [|v vr IH]; 
@@ -1635,7 +1635,7 @@ Proof.
           unfold Int.max_unsigned. omega.
         left. intro E. rewrite E in *. simpl in *. omega.
       split. intros r IN. destruct IN as [<- | IN].
-        unfold Ptr.add. destruct bp. unfold valid_alloc_range.
+        unfold MPtr.add. destruct bp. unfold valid_alloc_range.
           rewrite !Int.add_unsigned; 
             repeat rewrite Int.unsigned_repr; try omega;
               unfold Int.max_unsigned; repeat split; try omega.
@@ -1655,7 +1655,7 @@ Proof.
             rewrite !Int.add_unsigned; 
               repeat rewrite Int.unsigned_repr; try omega;
                 unfold Int.max_unsigned; omega.
-        unfold Ptr.offset, Ptr.add, fst.
+        unfold MPtr.offset, MPtr.add, fst.
         rewrite !Int.add_unsigned; 
           repeat rewrite Int.unsigned_repr; try omega;
             unfold Int.max_unsigned; omega.
@@ -1663,7 +1663,7 @@ Proof.
         left. split. done. omega. 
       by right. 
     (* Local scalar *)
-    assert (BIEQ': Ptr.block bp < sbp + 1). omega.
+    assert (BIEQ': MPtr.block bp < sbp + 1). omega.
     specialize (IH _ _ (sbp + 1) bp _ _ NDvr BIEQ' AV NPOS MU VAR).
     destruct IH as [rs' (ROV & RLD & VARS & RINOS)].
     eexists.
@@ -1712,7 +1712,7 @@ Proof.
       unfold Int.max_unsigned. omega.
     left. intro E. rewrite E in *. simpl in *. omega.
   split. intros r IN. destruct IN as [<- | IN].
-    destruct bp; unfold Ptr.add, valid_alloc_range.
+    destruct bp; unfold MPtr.add, valid_alloc_range.
     destruct VAR as [(L & SZ & H & ALG) | E0]; [|omegaContradiction].
       rewrite !Int.add_unsigned; 
         repeat rewrite Int.unsigned_repr; try omega;
@@ -1733,7 +1733,7 @@ Proof.
         rewrite !Int.add_unsigned; 
           repeat rewrite Int.unsigned_repr; try omega;
             unfold Int.max_unsigned; omega.
-    unfold Ptr.offset, Ptr.add, fst.
+    unfold MPtr.offset, MPtr.add, fst.
     rewrite !Int.add_unsigned; 
       repeat rewrite Int.unsigned_repr; try omega;
         unfold Int.max_unsigned; omega.
@@ -1783,10 +1783,10 @@ Fixpoint build_csm_env (vars : list (ident * var_kind))
                             (acc ! vid <- (Ptr sbp base_offset, vk)) 
           | Var_stack_scalar c ofs =>
               build_csm_env vt cenv sbp bp
-                            (acc ! vid <- (Ptr.add bp (Int.repr ofs), vk)) 
+                            (acc ! vid <- (MPtr.add bp (Int.repr ofs), vk)) 
           | Var_stack_array ofs =>
               build_csm_env vt cenv sbp bp
-                            (acc ! vid <- (Ptr.add bp (Int.repr ofs), vk))
+                            (acc ! vid <- (MPtr.add bp (Int.repr ofs), vk))
           | _ => acc (* Should never get here *)
         end
     | nil => acc
@@ -2074,7 +2074,7 @@ Lemma buffer_alloc_env_related:
     apply_buffer (alloc_items_of_ranges rs) m = Some m' ->
     build_envmap vars cenv te = Some te' ->
     NoDup (map get_name vars) ->
-    Ptr.block bp < sbp ->
+    MPtr.block bp < sbp ->
     scratch_min_block <= sbp ->
     assign_variables ids vars (ge, n) = (cenv, fsize) ->
     0 <= n ->
@@ -2140,7 +2140,7 @@ Proof.
       eapply alloc_steps_step. 2 : apply AS.
       by eapply StepAllocLocal.
     (* Local variable *)
-    assert (BIEQ': Ptr.block bp < sbp + 1). omega.
+    assert (BIEQ': MPtr.block bp < sbp + 1). omega.
     pose proof (assign_variables_not_in _ _ _ _ _ _ _ NIN AV) as E. simpl in E.
     simpl in BEM, BE.
     rewrite <- E, PMap.gss in ROV, BEM, BE. 
@@ -2277,7 +2277,7 @@ Proof.
   Case "buffers_related_free".
     destruct IHBR as [[tp' PUB'] [spx PUBsx]].
     split.
-      exists tp'; simpl; by destruct Ptr.eq_dec.
+      exists tp'; simpl; by destruct MPtr.eq_dec.
     exists spx; simpl; rewrite fold_left_opt_app; by rewrite PUB.
     
   Case "buffers_related_other".
@@ -2606,7 +2606,7 @@ Lemma scratch_allocs_fresh_app:
   scratch_allocs_fresh tso.(tso_buffers) sp ->
   is_buffer_ins t (alloc_items_of_ranges rs) tso tso' ->
   (forall p n, In (p, n) rs -> machine_ptr p \/
-                               bnd <= Ptr.block p) ->
+                               bnd <= MPtr.block p) ->
   range_list_disjoint rs ->
   tso_memory_upper_bound bnd tso ->
   scratch_allocs_fresh tso'.(tso_buffers) sp.
@@ -2689,7 +2689,7 @@ Proof.
 
   intros.
   simpl in IN. destruct IN as [-> | IN].
-    simpl. destruct (low_mem_restr (Ptr.block p1)) as [] _eqn : E.
+    simpl. destruct (low_mem_restr (MPtr.block p1)) as [] _eqn : E.
     destruct p1; simpl in *; by rewrite SC in *.
     apply in_eq.
   simpl. 
@@ -2836,7 +2836,7 @@ Proof.
   destruct low_mem_restr; [|destruct chunk_inside_range_list]; by inv PU.
   
   destruct k; destruct valid_alloc_range_dec; 
-    try (destruct (low_mem_restr (Ptr.block p)); by inv PU).
+    try (destruct (low_mem_restr (MPtr.block p)); by inv PU).
   destruct range_in_dec. done. 
   inv PU. intros r' IN'. simpl in IN'. 
   destruct IN' as [<- | IN']; [|apply RV]; done.
@@ -2897,7 +2897,7 @@ Proof.
       eby eapply ranges_valid_part_update_buffer.
     apply IHBR; unfold part_update_buffer in *. edone.
         simpl in PUBt.
-        by destruct Ptr.eq_dec. 
+        by destruct MPtr.eq_dec. 
       simpl in PUBs. rewrite fold_left_opt_app in PUBs.
       by rewrite PUB in PUBs.
     eapply remove_disj_preserves_partition_injectivity. edone.
@@ -2920,7 +2920,7 @@ Lemma scratch_min_block_mptr:
   forall tso p bnd,
     machine_ptr p ->
     tso_memory_upper_bound bnd tso ->
-    Ptr.block p < bnd.
+    MPtr.block p < bnd.
 Proof.
   intros tso p bnd MP (_ & _ & SMB).
   destruct p as [b o].
@@ -2944,7 +2944,7 @@ Lemma allocs_disjoint_to_unbuffer_safe:
     (VARs: forall r, In r rs -> valid_alloc_range r)
     (TSOBND: tso_memory_upper_bound bnd stso)
     (INS : forall p' n', In (p', n') rs -> range_inside (p', n') (p, n) \/
-                                           bnd <= Ptr.block p')
+                                           bnd <= MPtr.block p')
     (BAt : is_buffer_ins t (BufferedAlloc p n MObjStack :: nil) ttso ttso')
     (BAs : is_buffer_ins t (alloc_items_of_ranges rs) stso stso'),
       unbuffer_safe stso'.

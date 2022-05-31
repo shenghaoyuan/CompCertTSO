@@ -495,8 +495,8 @@ Proof.
 
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG); simpl; rewrite Ptr.add_zero_r.  
-  destruct Ptr.eq_dec; clarify. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite (agree_sp _ _ _ AG); simpl; rewrite MPtr.add_zero_r.  
+  destruct MPtr.eq_dec; clarify. (* destruct memory_chunk_eq_dec; [|done]. *)
   by simpl in HT; rewrite HT.
   
   intros. eexists. split. econstructor; try done. simpl. simpl in HT.
@@ -520,8 +520,8 @@ Proof.
   reduce_weakstep Heip.
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG); simpl; rewrite Ptr.add_zero_r.  
-  destruct Ptr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite (agree_sp _ _ _ AG); simpl; rewrite MPtr.add_zero_r.  
+  destruct MPtr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
   simpl in HT; rewrite HT. reflexivity. 
   
   intros. eexists. split. econstructor; try done. simpl; simpl in HT.
@@ -540,8 +540,8 @@ Proof.
   eexists; split.
   reduce_weakstep Heip.
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
-  rewrite (agree_sp _ _ _ AG); simpl; rewrite Ptr.add_zero_r.  
-  destruct Ptr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite (agree_sp _ _ _ AG); simpl; rewrite MPtr.add_zero_r.  
+  destruct MPtr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
   simpl in HT; rewrite HT. reflexivity. 
   
   intros. eexists. split. econstructor; try done. simpl; simpl in HT.
@@ -605,7 +605,7 @@ Proof.
   reduce_weakstep Heip.
   unfold write_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG). simpl. rewrite Ptr.add_zero_r.
+  rewrite (agree_sp _ _ _ AG). simpl. rewrite MPtr.add_zero_r.
   simpl in HT.  rewrite nextinstr_inv. 2: auto with x86gen.
   des_teed.
  
@@ -630,7 +630,7 @@ Proof.
   reduce_weakstep Heip.
   unfold write_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG). simpl. rewrite Ptr.add_zero_r.
+  rewrite (agree_sp _ _ _ AG). simpl. rewrite MPtr.add_zero_r.
   simpl in HT.  rewrite nextinstr_inv; [| auto with x86gen].
   des_teed.
   eapply match_states_intro; eauto.
@@ -652,7 +652,7 @@ Proof.
   reduce_weakstep Heip.
   unfold write_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG). simpl. rewrite Ptr.add_zero_r.
+  rewrite (agree_sp _ _ _ AG). simpl. rewrite MPtr.add_zero_r.
   des_teed. 
   eapply match_states_intro; eauto.
   eapply incl_cons_inv; eauto.
@@ -690,10 +690,10 @@ Proof.
   simpl.
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
-  rewrite (agree_sp _ _ _ AG). simpl. rewrite Ptr.add_zero_r. unfold parent_offset.
+  rewrite (agree_sp _ _ _ AG). simpl. rewrite MPtr.add_zero_r. unfold parent_offset.
   clarify'. 
-  rewrite <- Ptr.add_add_r, Int.add_commut.
-  destruct Ptr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite <- MPtr.add_add_r, Int.add_commut.
+  destruct MPtr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
   simpl in HT. rewrite HT. reflexivity.
   
   intros. eexists. split. econstructor; try done.
@@ -719,8 +719,8 @@ Proof.
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite nextinstr_inv; auto with x86gen.  
   rewrite (agree_sp _ _ _ AG); simpl. 
-  rewrite Ptr.add_zero_r. unfold parent_offset. rewrite <- Ptr.add_add_r, Int.add_commut. 
-  destruct Ptr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite MPtr.add_zero_r. unfold parent_offset. rewrite <- MPtr.add_add_r, Int.add_commut. 
+  destruct MPtr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
   simpl in HT; rewrite HT. reflexivity. 
   intros. eexists. split. econstructor; try done.
   clarify'. simpl. simpl in HT.
@@ -740,8 +740,8 @@ Proof.
   reduce_weakstep Heip.
   unfold read_ea, ea, ea_rm_index, ea_rm_base, value_of_imm.
   rewrite (agree_sp _ _ _ AG); simpl. 
-  rewrite Ptr.add_zero_r. unfold parent_offset. rewrite <- Ptr.add_add_r, Int.add_commut. 
-  destruct Ptr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
+  rewrite MPtr.add_zero_r. unfold parent_offset. rewrite <- MPtr.add_add_r, Int.add_commut. 
+  destruct MPtr.eq_dec; [|done]. (* destruct memory_chunk_eq_dec; [|done]. *)
   simpl in HT; rewrite HT. reflexivity. 
   intros. eexists. split. econstructor; try done.
   clarify'. simpl. simpl in HT.
@@ -820,27 +820,27 @@ Proof.
 
   Case "Aglobal".
   unfold get_symbol; rewrite symbols_preserved.
-  by destruct Genv.find_symbol; simpl; clarify; rewrite !Ptr.add_zero_r.
+  by destruct Genv.find_symbol; simpl; clarify; rewrite !MPtr.add_zero_r.
 
   Case "Abased".
   destruct (ms m) as [] _eqn:Hms; clarify.
   unfold get_symbol; rewrite symbols_preserved.
   destruct Genv.find_symbol; simpl; clarify.
   assert (Hld := ireg_val _ _ _ _ _ AG EQ); rewrite Hms in Hld; inv Hld; simpl.
-  by rewrite Ptr.add_zero_r, Ptr.add_add_r.
+  by rewrite MPtr.add_zero_r, MPtr.add_add_r.
 
   Case "Abasedscaled".
   destruct (ms m) as [] _eqn:Hms; clarify.
   unfold get_symbol; rewrite symbols_preserved.
   destruct Genv.find_symbol; simpl; clarify.
   assert (Hld := ireg_val _ _ _ _ _ AG EQ); rewrite Hms in Hld; inv Hld; simpl.
-  rewrite Ptr.add_zero_r, Ptr.add_add_r.
+  rewrite MPtr.add_zero_r, MPtr.add_add_r.
   unfold transl_scale, Int.unsigned in EQ1;
   destruct i as [[|[|[|[|[]|]|]|]|]]; inv EQ1; unfold index_of_s; simpl; try done.
   by rewrite <- (Int.mul_one i2) at 1.
 
   Case "Ainstack".
-  by clarify; inv AG; rewrite agree_sp; simpl; rewrite Ptr.add_zero_r.
+  by clarify; inv AG; rewrite agree_sp; simpl; rewrite MPtr.add_zero_r.
 Qed.
 
 Lemma ea_nextinstr:
@@ -933,7 +933,7 @@ Proof.
     unfold write_ea, nextinstr; simpl.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
-    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !Ptr.add_zero_r.
+    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !MPtr.add_zero_r.
     repeat (rewrite Pregmap.gso; [|by destruct x1]); rewrite Pregmap.gss.
     by rewrite dec_eq_true.
   repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss, Heip, ?val_incr_pointer.
@@ -954,7 +954,7 @@ Proof.
     unfold write_ea, nextinstr; simpl.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
-    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !Ptr.add_zero_r.
+    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !MPtr.add_zero_r.
     repeat (rewrite Pregmap.gso; [|by destruct x1]); rewrite Pregmap.gss.
     by rewrite dec_eq_true.
   repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss, Heip, ?val_incr_pointer.
@@ -975,7 +975,7 @@ Proof.
     unfold write_ea, nextinstr; simpl.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
-    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !Ptr.add_zero_r.
+    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !MPtr.add_zero_r.
     repeat (rewrite Pregmap.gso; [|by destruct x1]); rewrite Pregmap.gss.
     by rewrite dec_eq_true.
   repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss, Heip, ?val_incr_pointer.
@@ -996,7 +996,7 @@ Proof.
     unfold write_ea, nextinstr; simpl.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
     repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss.
-    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !Ptr.add_zero_r.
+    rewrite ea_nextinstr in X; rewrite X; simpl; rewrite !MPtr.add_zero_r.
     repeat (rewrite Pregmap.gso; [|by destruct x1]); rewrite Pregmap.gss.
     by rewrite dec_eq_true.
   repeat (rewrite Pregmap.gso; [|done]); rewrite Pregmap.gss, Heip, ?val_incr_pointer.
@@ -1017,19 +1017,19 @@ Lemma exec_Mcall_correct:
     (RA : return_address_offset f c roffs)
     (MS : match_states (Machconcr.State s fb sp (Mcall sig ros :: c) stkr rs) t)
     (RI : range_inside
-           (Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize), Int.zero)
+           (MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize), Int.zero)
            stkr),
    (exists t' : state,
       exists v' : val,
-        Val.lessdef (Vptr (Ptr (Int.unsigned (Ptr.offset fb)) roffs)) v' /\
+        Val.lessdef (Vptr (Ptr (Int.unsigned (MPtr.offset fb)) roffs)) v' /\
         weakstep tlts t
           (TEmem
-             (MEwrite (Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
+             (MEwrite (MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
                 Mint32 v')) t' /\
         match_states
           (Callstate
-             (Stackframe fb sp (Ptr (Int.unsigned (Ptr.offset fb)) roffs) c
-              :: s) f' (Ptr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
+             (Stackframe fb sp (Ptr (Int.unsigned (MPtr.offset fb)) roffs) c
+              :: s) f' (MPtr.sub_int sp (Int.repr Stacklayout.fe_retaddrsize))
              stkr rs) t').
 Proof.
   intros; inv MS.
@@ -1173,7 +1173,7 @@ Qed.
 Lemma exec_function_internal_correct:
   forall t s fb stkr rs f sp sp'
     (H : Genv.find_funct_ptr ge fb = Some (Internal f))
-    (H0 : sp' = Ptr.sub_int sp (total_framesize f))
+    (H0 : sp' = MPtr.sub_int sp (total_framesize f))
     (H1 : range_inside (sp', Int.zero) stkr)
     (MS : match_states (Callstate s fb sp stkr rs) t),
   (exists t' : state,
@@ -1237,7 +1237,7 @@ Proof.
   intros. inv MS. 
   eexists. split. eapply step_weakstep. unfold_step. 
   rewrite AT2. rewrite AT3. rewrite AT4. simpl.
-  rewrite (agree_sp _ _ _ AG). simpl. destruct Ptr.eq_dec;[clear e|done].
+  rewrite (agree_sp _ _ _ AG). simpl. destruct MPtr.eq_dec;[clear e|done].
   (* destruct memory_chunk_eq_dec;[clear e|done]. *)
   reflexivity.
   intros v' LD. inv LD. 
@@ -1434,9 +1434,9 @@ Proof.
 Qed.
 
 Lemma Ptr_eq_simpl:
-  forall a b c d, Ptr.eq (Ptr a b) (Ptr c d) = (if zeq a c then Int.eq b d else false).
+  forall a b c d, MPtr.eq (Ptr a b) (Ptr c d) = (if zeq a c then Int.eq b d else false).
 Proof.
-  intros; unfold Ptr.eq; destruct Ptr.eq_dec; clarify; 
+  intros; unfold MPtr.eq; destruct MPtr.eq_dec; clarify; 
   destruct zeq; clarify; rewrite ?Int.eq_true, ?Int.eq_false; clarify; congruence.
 Qed.
 
@@ -3068,7 +3068,7 @@ Case "exec_Matomic".
   rewrite <- EQ1 in EQ0; inv EQ0.
   rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
   rewrite Haddzero; rewrite Haddzero.
-  destruct Ptr.eq_dec; [|done].
+  destruct MPtr.eq_dec; [|done].
   (* destruct memory_chunk_eq_dec; [|done]. *)
   destruct (rs m1); clarify; destruct (rs m0); clarify;
   inversion Hldx2; inversion Hldx3; clarify;
@@ -3090,7 +3090,7 @@ Case "exec_Matomic".
   rewrite <- EQ1 in EQ0; inv EQ0.
   rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
   rewrite Haddzero; rewrite Haddzero.
-  destruct Ptr.eq_dec; [|done].
+  destruct MPtr.eq_dec; [|done].
   (* destruct memory_chunk_eq_dec; [|done]. *)
   destruct (rs m1); clarify; destruct (rs m0); clarify;
   inversion Hldx2; inversion Hldx3; clarify;
@@ -3131,7 +3131,7 @@ Case "exec_Matomic".
   rgso; [|intro; clarify]. rgso. rewrite <- H0 in Hldx1. inv Hldx1. 
   simpl. 
   rewrite Haddzero; rewrite Haddzero.
-  destruct Ptr.eq_dec; [|done].
+  destruct MPtr.eq_dec; [|done].
   (* destruct memory_chunk_eq_dec; [|done]. *)
   rgss. rgso. rgso; [|congruence]. rgso. 
   destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3168,7 +3168,7 @@ Case "exec_Matomic".
   rgso; [|intro; clarify]. rgso. rewrite <- H0 in Hldx1. inv Hldx1. 
   simpl. 
   rewrite Haddzero; rewrite Haddzero.
-  destruct Ptr.eq_dec; [|done].
+  destruct MPtr.eq_dec; [|done].
   (* destruct memory_chunk_eq_dec; [|done]. *)
   rgss. rgso. rgso; [|congruence]. rgso. 
   destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3206,7 +3206,7 @@ Case "exec_Matomic".
     rgso. unfold nextinstr; rgso.
     rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
     rewrite Haddzero; rewrite Haddzero.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     (* destruct memory_chunk_eq_dec; [|done]. *)
     gs_simpl_safe.
     destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3252,7 +3252,7 @@ Case "exec_Matomic".
     rgso. unfold nextinstr; rgso.
     rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
     rewrite Haddzero; rewrite Haddzero.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     (* destruct memory_chunk_eq_dec; [|done]. *)
     gs_simpl_safe.
     destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3305,7 +3305,7 @@ Case "exec_Matomic".
     rgso; [|congruence]. unfold nextinstr. rgso. rgso. rgso.
     rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
     rewrite Haddzero; rewrite Haddzero.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     (* destruct memory_chunk_eq_dec; [|done]. *)
     rgss. rgso. rgso. rgso. rgso;[|congruence]. rgso. rgso. rgso. 
     destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3366,7 +3366,7 @@ Case "exec_Matomic".
     rgso; [|congruence]. unfold nextinstr. rgso. rgso. rgso.
     rewrite <- H0 in Hldx1. generalize Hldx1; intro H; inv H. simpl.
     rewrite Haddzero; rewrite Haddzero.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     (* destruct memory_chunk_eq_dec; [|done]. *)
     rgss. rgso. rgso. rgso. rgso;[|congruence]. rgso. rgso. rgso. 
     destruct (rs m1); clarify; destruct (rs m0); clarify;
@@ -3427,7 +3427,7 @@ Case "exec_Matomic".
     assert (Hp: (p + Int.zero + Int.zero)%pointer = p).
       by destruct p; simpl; rewrite !Int.add_zero.
     rewrite Hp; clear Hp.
-    destruct Ptr.eq_dec; [|done].
+    destruct MPtr.eq_dec; [|done].
     (* destruct memory_chunk_eq_dec; [|done]. *)
     rgss. destruct rmw_instr_dec; [|done].
     rewrite HTv. reflexivity.
@@ -3587,7 +3587,7 @@ Case "exec_return_exit_read_ra".
   apply step_weakstep. unfold_step. rewrite AT2, AT3, AT4.
   simpl.
   rewrite (agree_sp _ _ _ AG). simpl. 
-  by (destruct Ptr.eq_dec; [|done];
+  by (destruct MPtr.eq_dec; [|done];
       (* destruct memory_chunk_eq_dec; [|done]; *)
       destruct Val.eq_dec; [|done]). 
   intros. inv H. 
@@ -3598,7 +3598,7 @@ Case "exec_return_exit_read_ra".
   exists (Freestackstate stkr); split.
   apply step_weakstep. unfold_step. 
   rewrite (agree_sp _ _ _ AG). simpl. 
-  by (destruct Ptr.eq_dec; [|done];
+  by (destruct MPtr.eq_dec; [|done];
       (* destruct memory_chunk_eq_dec; [|done]; *)
       destruct Val.eq_dec; [|done]). 
   intros. inv H. 
@@ -3613,7 +3613,7 @@ Case "exec_return_fail".
   ( eexists; split;
   [ eapply step_weakstep; unfold_step; rewrite AT2, AT3, AT4; simpl;
     rewrite (agree_sp _ _ _ AG);
-    unfold read_mem; destruct Ptr.eq_dec; [|done];
+    unfold read_mem; destruct MPtr.eq_dec; [|done];
     destruct memory_chunk_eq_dec; [|done]; simpl; rewrite H1 |] ).
   (* ra = nullptr *)
   rewrite e; destruct Val.eq_dec as [|done]. 
@@ -3632,7 +3632,7 @@ Case "exec_return_fail".
   ( eexists; split;
   [ eapply step_weakstep; unfold_step; 
     rewrite (agree_sp _ _ _ AG); simpl;
-    unfold read_mem; destruct Ptr.eq_dec; [|done];
+    unfold read_mem; destruct MPtr.eq_dec; [|done];
     (* destruct memory_chunk_eq_dec; [|done];*) simpl; rewrite H1 |] ).
   (* ra = nullptr *)
   rewrite e; destruct Val.eq_dec as [|done]. 

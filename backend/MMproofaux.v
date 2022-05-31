@@ -113,16 +113,16 @@ Definition valid_erange r :=
     Int.unsigned s < Int.half_modulus /\
     Punsigned ofs + Int.unsigned s <= Int.modulus.
 
-Definition range_top (r: arange) := Ptr.add (fst r) (snd r).
+Definition range_top (r: arange) := MPtr.add (fst r) (snd r).
 
 Definition range_sp (stkr: arange) (sp: pointer) :=
-  (Ptr (Ptr.block (fst stkr)) (Ptr.offset sp), 
-    Int.sub (Ptr.offset (range_top stkr)) (Ptr.offset sp)).
+  (Ptr (MPtr.block (fst stkr)) (MPtr.offset sp), 
+    Int.sub (MPtr.offset (range_top stkr)) (MPtr.offset sp)).
 
 Lemma valid_erange_sub: forall n p
   (LT1: Int.unsigned n < Int.half_modulus)
-  (LT2: Int.unsigned n < Punsigned (Ptr.offset p)),
-  valid_erange (Ptr.sub_int p n, n).
+  (LT2: Int.unsigned n < Punsigned (MPtr.offset p)),
+  valid_erange (MPtr.sub_int p n, n).
 Proof.
   unfold valid_erange, Punsigned; intros.
   destruct n as [n N]; destruct p as [b [p P]]; simpl in *.
@@ -164,10 +164,10 @@ Qed.
 Lemma range_inside_endpoints_sub:
   forall r p n
     (INp: range_inside (p, Int.zero) r)
-    (INn: range_inside (Ptr.sub_int p n, Int.zero) r)
-    (Vn: valid_erange (Ptr.sub_int p n, n))
+    (INn: range_inside (MPtr.sub_int p n, Int.zero) r)
+    (Vn: valid_erange (MPtr.sub_int p n, n))
     (Vr: valid_erange r),
-  range_inside (Ptr.sub_int p n, n) r.
+  range_inside (MPtr.sub_int p n, n) r.
 Proof.
   unfold valid_erange, Punsigned, range_inside in *.
   intros [[? [r R]] [s S]] [? [p P]] [n N]; simpl; Zsimps.
@@ -179,14 +179,14 @@ Qed.
 Lemma range_inside_endpoints_add:
   forall r p n
     (INp: range_inside (p, Int.zero) r)
-    (INn: range_inside (Ptr.add p n, Int.zero) r)
+    (INn: range_inside (MPtr.add p n, Int.zero) r)
     (Vn: valid_erange (p, n))
     (Vr: valid_erange r),
   range_inside (p, n) r.
 Proof.
   intros.
-  assert (EQ: p = Ptr.sub_int (Ptr.add p n) n).
-    by rewrite Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r.
+  assert (EQ: p = MPtr.sub_int (MPtr.add p n) n).
+    by rewrite MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r.
   rewrite EQ in INp |- *.
   apply range_inside_endpoints_sub; try done.
   by rewrite <- EQ.
@@ -195,10 +195,10 @@ Qed.
 Lemma range_inside_range_sp_sub:
   forall stkr p n
     (V: valid_erange stkr)
-    (Vn: valid_erange (Ptr.sub_int p n, n))
-    (INn: range_inside (Ptr.sub_int p n, Int.zero) stkr)
+    (Vn: valid_erange (MPtr.sub_int p n, n))
+    (INn: range_inside (MPtr.sub_int p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
-    range_inside (Ptr.sub_int p n, n) (range_sp stkr (Ptr.sub_int p n)).
+    range_inside (MPtr.sub_int p n, n) (range_sp stkr (MPtr.sub_int p n)).
 Proof.
   unfold valid_erange, Punsigned, range_inside in *.
   intros [[? [r R]] [s S]] [? [p P]] [n N]; simpl; Zsimps.
@@ -224,13 +224,13 @@ Lemma range_inside_range_sp:
   forall stkr p n
     (V: valid_erange stkr)
     (Vn: valid_erange (p, n))
-    (INn: range_inside (Ptr.add p n, Int.zero) stkr)
+    (INn: range_inside (MPtr.add p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
     range_inside (p, n) (range_sp stkr p).
 Proof.
   intros.
-  assert (EQ: p = Ptr.sub_int (Ptr.add p n) n).
-    by rewrite Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r.
+  assert (EQ: p = MPtr.sub_int (MPtr.add p n) n).
+    by rewrite MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r.
   rewrite EQ in INsp |- *.
   apply range_inside_range_sp_sub; try done.
   by rewrite <- EQ.
@@ -239,10 +239,10 @@ Qed.
 Lemma range_sp_inside_range_sp_sub:
   forall stkr p n
     (V: valid_erange stkr)
-    (Vn: valid_erange (Ptr.sub_int p n, n))
-    (INn: range_inside (Ptr.sub_int p n, Int.zero) stkr)
+    (Vn: valid_erange (MPtr.sub_int p n, n))
+    (INn: range_inside (MPtr.sub_int p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
-    range_inside (range_sp stkr p) (range_sp stkr (Ptr.sub_int p n)).
+    range_inside (range_sp stkr p) (range_sp stkr (MPtr.sub_int p n)).
 Proof.
   unfold valid_erange, Punsigned, range_inside in *.
   intros [[? [r R]] [s S]] [? [p P]] [n N]; simpl; Zsimps.
@@ -268,13 +268,13 @@ Lemma range_sp_inside_range_sp_add:
   forall stkr p n
     (V: valid_erange stkr)
     (Vn: valid_erange (p, n))
-    (INn: range_inside (Ptr.add p n, Int.zero) stkr)
+    (INn: range_inside (MPtr.add p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
-    range_inside (range_sp stkr (Ptr.add p n)) (range_sp stkr p).
+    range_inside (range_sp stkr (MPtr.add p n)) (range_sp stkr p).
 Proof.
   intros.
-  assert (EQ: p = Ptr.sub_int (Ptr.add p n) n).
-    by rewrite Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r.
+  assert (EQ: p = MPtr.sub_int (MPtr.add p n) n).
+    by rewrite MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r.
   rewrite EQ in INsp; rewrite EQ at 2.  
   apply range_sp_inside_range_sp_sub; try done.
   by rewrite <- EQ.
@@ -283,10 +283,10 @@ Qed.
 Lemma ranges_disjoint_range_sp_sub:
   forall stkr p n
     (V: valid_erange stkr)
-    (Vn: valid_erange (Ptr.sub_int p n, n))
-    (INn: range_inside (Ptr.sub_int p n, Int.zero) stkr)
+    (Vn: valid_erange (MPtr.sub_int p n, n))
+    (INn: range_inside (MPtr.sub_int p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
-    ranges_disjoint (Ptr.sub_int p n, n) (range_sp stkr p).
+    ranges_disjoint (MPtr.sub_int p n, n) (range_sp stkr p).
 Proof.
   unfold valid_erange, Punsigned, range_inside, ranges_disjoint in *.
   intros [[? [r R]] [s S]] [? [p P]] [n N]; simpl; Zsimps.
@@ -304,20 +304,20 @@ Lemma ranges_disjoint_range_sp_add:
   forall stkr p n
     (V: valid_erange stkr)
     (Vn: valid_erange (p, n))
-    (INn: range_inside (Ptr.add p n, Int.zero) stkr)
+    (INn: range_inside (MPtr.add p n, Int.zero) stkr)
     (INsp: range_inside (p, Int.zero) stkr),
-    ranges_disjoint (p, n) (range_sp stkr (Ptr.add p n)).
+    ranges_disjoint (p, n) (range_sp stkr (MPtr.add p n)).
 Proof.
   intros.
-  assert (EQ: p = Ptr.sub_int (Ptr.add p n) n).
-    by rewrite Ptr.sub_add_l, Int.sub_idem, Ptr.add_zero_r.
+  assert (EQ: p = MPtr.sub_int (MPtr.add p n) n).
+    by rewrite MPtr.sub_add_l, Int.sub_idem, MPtr.add_zero_r.
   rewrite EQ in INsp; rewrite EQ at 1.  
   apply ranges_disjoint_range_sp_sub; try done.
   by rewrite <- EQ.
 Qed.
 
 Lemma valid_erange_add1: forall n p r
-  (INn: range_inside (Ptr.add p n, Int.zero) r)
+  (INn: range_inside (MPtr.add p n, Int.zero) r)
   (INp: range_inside (p, Int.zero) r)
   (SZn: Int.unsigned n < Int.half_modulus)
   (V : valid_erange r),
@@ -337,11 +337,11 @@ Proof.
 Qed.
 
 Lemma valid_erange_sub1: forall n p r
-  (INn: range_inside (Ptr.sub_int p n, Int.zero) r)
+  (INn: range_inside (MPtr.sub_int p n, Int.zero) r)
   (INp: range_inside (p, Int.zero) r)
   (SZn: Int.unsigned n < Int.half_modulus)
   (V : valid_erange r),
-   valid_erange (Ptr.sub_int p n, n).
+   valid_erange (MPtr.sub_int p n, n).
 Proof.
   unfold range_inside, valid_erange, Punsigned.
   intros [n N] [b [p P]] [[? [r R]] [s S]]; simpl. Zsimps.
@@ -357,11 +357,11 @@ Proof.
 Qed.
 
 Lemma range_inside_interm_sub: forall n1 n2 p r
-  (INn: range_inside (Ptr.sub_int p (Int.add n1 n2), Int.zero) r)
+  (INn: range_inside (MPtr.sub_int p (Int.add n1 n2), Int.zero) r)
   (INp: range_inside (p, Int.zero) r)
   (SZn: Int.unsigned n1 + Int.unsigned n2 < Int.half_modulus)
   (V : valid_erange r),
-  range_inside (Ptr.sub_int p n1, Int.zero) r.
+  range_inside (MPtr.sub_int p n1, Int.zero) r.
 Proof.
   unfold range_inside, valid_erange, Punsigned.
   intros [n1 N1] [n2 N2] [b [p P]] [[b' [r R]] [s S]]; simpl; Zsimps.
@@ -383,18 +383,18 @@ Proof.
 Qed.
 
 Lemma range_inside_interm_add: forall n1 n2 p r
-  (INn: range_inside (Ptr.add p (Int.add n1 n2), Int.zero) r)
+  (INn: range_inside (MPtr.add p (Int.add n1 n2), Int.zero) r)
   (INp: range_inside (p, Int.zero) r)
   (SZn: Int.unsigned n1 + Int.unsigned n2 < Int.half_modulus)
   (V : valid_erange r),
-  range_inside (Ptr.add p n1, Int.zero) r.
+  range_inside (MPtr.add p n1, Int.zero) r.
 Proof.
   intros.
-  replace (Ptr.add p n1) with (Ptr.sub_int (Ptr.add p (Int.add n1 n2)) n2).
+  replace (MPtr.add p n1) with (MPtr.sub_int (MPtr.add p (Int.add n1 n2)) n2).
     apply range_inside_interm_sub with (n2 := n1); try done.
-      by rewrite Ptr.sub_add_l, Int.add_commut, Int.sub_idem, Ptr.add_zero_r.
+      by rewrite MPtr.sub_add_l, Int.add_commut, Int.sub_idem, MPtr.add_zero_r.
     by rewrite Zplus_comm.
-  by rewrite Ptr.sub_add_l, Int.add_commut, Int.sub_add_l, 
+  by rewrite MPtr.sub_add_l, Int.add_commut, Int.sub_add_l, 
              Int.sub_idem, Int.add_commut, Int.add_zero.
 Qed.
 
@@ -402,8 +402,8 @@ Lemma range_inside_sub_add_r:
   forall p n1 n2
     (SZ_OK : Int.unsigned n1 + Int.unsigned n2 < Int.half_modulus)
     (Vn1 : valid_erange (p, n1))
-    (Vn2 : valid_erange (Ptr.sub_int p n2, Int.add n1 n2)),
-   range_inside (p, n1) (Ptr.sub_int p n2, Int.add n1 n2).
+    (Vn2 : valid_erange (MPtr.sub_int p n2, Int.add n1 n2)),
+   range_inside (p, n1) (MPtr.sub_int p n2, Int.add n1 n2).
 Proof.
   unfold range_inside, valid_erange, Punsigned.
   intros [b [p P]] [n1 N1] [n2 N2] SZ_OK; simpl in *; Zsimps.
@@ -441,7 +441,7 @@ Lemma range_inside_top:
   forall p n stkr 
     (RI: range_inside (p, n) stkr) 
     (VE: valid_erange (p, n)),
-    range_inside (Ptr.add p n, Int.zero) stkr.
+    range_inside (MPtr.add p n, Int.zero) stkr.
 Proof.
   intros.
   destruct p. destruct stkr as [[bstkr ostkr] nstkr].
@@ -531,7 +531,7 @@ Lemma ranges_disjoint_range_sp_add2:
   forall stkr p n
     (V: valid_erange stkr)
     (INn: range_inside (p, n) stkr),
-    ranges_disjoint (p, n) (range_sp stkr (Ptr.add p n)).
+    ranges_disjoint (p, n) (range_sp stkr (MPtr.add p n)).
 Proof.
   intros.
   eapply ranges_disjoint_range_sp_add. edone.
@@ -545,7 +545,7 @@ Lemma range_inside_subrange:
   forall p n a b,
     valid_erange (p, n) ->
     Int.unsigned a + Int.unsigned b <= Int.unsigned n ->
-    range_inside (Ptr.add p a, b) (p, n).
+    range_inside (MPtr.add p a, b) (p, n).
 Proof.
   intros [b ofs] n a n' VE En.
   split. done.
@@ -574,7 +574,7 @@ Lemma range_inside_smaller:
     range_inside (p, n') (p, n).
 Proof.
   intros.
-  rewrite <- (Ptr.add_zero_r p) at 1.
+  rewrite <- (MPtr.add_zero_r p) at 1.
   eapply range_inside_subrange. done.
   rewrite unsigned_zero. omega.
 Qed.
@@ -582,10 +582,10 @@ Qed.
 Lemma range_inside_endpoints_sub2:
   forall r p n
     (INp: range_inside (p, Int.zero) r)
-    (INn: range_inside (Ptr.sub_int p n, Int.zero) r)
+    (INn: range_inside (MPtr.sub_int p n, Int.zero) r)
     (Nsmall: Int.unsigned n < Int.half_modulus)
     (Vr: valid_erange r),
-  range_inside (Ptr.sub_int p n, n) r.
+  range_inside (MPtr.sub_int p n, n) r.
 Proof.
   unfold valid_erange, Punsigned, range_inside in *.
 
@@ -602,8 +602,8 @@ Lemma range_inside_sub_add2:
   forall p n1 n2 r
     (SZ_OK : Int.unsigned n1 + Int.unsigned n2 < Int.half_modulus)
     (RI1 : range_inside (p, n1) r)
-    (RI2 : range_inside (Ptr.sub_int p n2, n2) r),
-   range_inside (Ptr.sub_int p n2, Int.add n1 n2) r.
+    (RI2 : range_inside (MPtr.sub_int p n2, n2) r),
+   range_inside (MPtr.sub_int p n2, Int.add n1 n2) r.
 Proof.
   unfold range_inside, valid_erange, Punsigned.
   intros [b [p P]] [n1 N1] [n2 N2] [[b' [p' P']] [n' N']] SZ_OK; simpl in *; Zsimps.
@@ -618,7 +618,7 @@ Lemma ranges_disjoint_add:
   forall p n n'
     (VE: valid_erange (p, n))
     (LTn': Int.unsigned n' < Int.half_modulus),
-    ranges_disjoint (p, n) (Ptr.add p n, n').
+    ranges_disjoint (p, n) (MPtr.add p n, n').
 Proof.
   intros [b ofs] ? ? [LT LE] ?.
   right.

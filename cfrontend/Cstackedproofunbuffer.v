@@ -197,7 +197,7 @@ Proof.
 
   simpl. 
   intros [DISJ RNI].
-  destruct (Ptr.eq_dec ph p) as [-> | N]. done.
+  destruct (MPtr.eq_dec ph p) as [-> | N]. done.
   simpl. split. by apply IH. 
   intros [] IN'. eby eapply RNI, in_range_remove.
 Qed.  
@@ -211,7 +211,7 @@ Proof.
   induction l as [|[ph nh] l IH]; simpl.
     by intros.
   intros RNE [RD RNI] n IN.
-  destruct (Ptr.eq_dec ph p) as [-> | N].
+  destruct (MPtr.eq_dec ph p) as [-> | N].
     assert (PNE: range_non_empty (p, n)). 
     apply RNE. right. done.
     assert (PHNE: range_non_empty (p, nh)) by (apply RNE; left; done).
@@ -237,7 +237,7 @@ Proof.
 
   Case "BufferedWrite".
     replace sp with sp' in *;
-      [| destruct (low_mem_restr (Ptr.block p)); 
+      [| destruct (low_mem_restr (MPtr.block p)); 
          destruct (chunk_inside_range_list p c sp); try inv PU; done].
     split. 
       intros r IN. 
@@ -249,7 +249,7 @@ Proof.
     destruct k;
       destruct (valid_alloc_range_dec (p, n)) as [VAR |];
         try destruct range_in_dec as [|RNI];
-          try (by destruct (low_mem_restr (Ptr.block p));
+          try (by destruct (low_mem_restr (MPtr.block p));
             try done; inv PU;
               try (by split; [intros r IN; 
                 apply (alloc_preserves_allocated ABI), RLA|])).
@@ -268,7 +268,7 @@ Proof.
     
   Case "BufferedFree".
     destruct k; 
-      try (destruct (low_mem_restr (Ptr.block p)); try done; inv PU; 
+      try (destruct (low_mem_restr (MPtr.block p)); try done; inv PU; 
         split; [intros r IN;
         destruct (free_preserves_allocated ABI _ _ (RLA _ IN)) 
           as [? | [? ?]] | ]; done).
@@ -291,7 +291,7 @@ Lemma pointer_in_range_list_in:
     exists n, In (p, n) l.
 Proof.
   intros p. induction l as [|[p' n'] l IH]. done.
-  simpl; destruct (Ptr.eq_dec p p') as [-> | N].
+  simpl; destruct (MPtr.eq_dec p p') as [-> | N].
     intro. eexists. left; reflexivity.
   intro H. destruct (IH H). eexists; right; eassumption.
 Qed.
@@ -316,7 +316,7 @@ Proof.
   
   Case "BufferedWrite".
     replace sp with sp' in *;
-      [| destruct (low_mem_restr (Ptr.block p)); 
+      [| destruct (low_mem_restr (MPtr.block p)); 
          destruct (chunk_inside_range_list p c sp); try inv PVU; done].
     specialize (MAS r' p' c' IN RI SP).
     eby eapply load_eq_preserved_by_store.
@@ -325,7 +325,7 @@ Proof.
     destruct k; 
       destruct (valid_alloc_range_dec (p, n)) as [VAR |];
         try destruct range_in_dec as [|RNI];
-          try (destruct (low_mem_restr (Ptr.block p)); try done; inv PVU;
+          try (destruct (low_mem_restr (MPtr.block p)); try done; inv PVU;
             specialize (MAS r' p' c' IN RI SP); 
               eby eapply load_eq_preserved_by_alloc).
     inv PVU.
@@ -341,13 +341,13 @@ Proof.
 
   Case "BufferedFree".
     assert (INsp: In r' sp).
-      destruct k; try (by destruct (low_mem_restr (Ptr.block p)); 
+      destruct k; try (by destruct (low_mem_restr (MPtr.block p)); 
         try done; inv PVU; done). 
       destruct (pointer_in_range_list p sp); try done; inv PVU.
       eby destruct r'; eapply in_range_remove.
     specialize (MAS r' p' c' INsp RI SP).
     destruct k; try (by
-      destruct (low_mem_restr (Ptr.block p)) as [] _eqn : MP; try done; inv PVU;
+      destruct (low_mem_restr (MPtr.block p)) as [] _eqn : MP; try done; inv PVU;
         eapply load_eq_preserved_by_free_diff_block; try edone;
           intro E; simpl in *; unfold range_inside, 
             range_of_chunk in *; destruct p; destruct p'; destruct r' as [[]]; 
@@ -503,9 +503,9 @@ Proof.
     unfold part_update_buffer in *. rewrite fold_left_opt_app, PVU. done.
     apply <- buffered_states_related_prepend_src.
     apply <- buffered_states_related_prepend_tgt. 
-    edone. simpl. by destruct (Ptr.eq_dec p p).
+    edone. simpl. by destruct (MPtr.eq_dec p p).
     by rewrite apply_buffer_app, SMAB in ABx.
-    unfold part_update_buffer in *. done. simpl. by destruct Ptr.eq_dec. 
+    unfold part_update_buffer in *. done. simpl. by destruct MPtr.eq_dec. 
     by rewrite apply_buffer_app, SMAB' in ABx'. done.
 
   Case "buffers_related_other".
@@ -838,7 +838,7 @@ Proof.
     unfold part_update, apply_buffer_item in *.
     destruct k;
     destruct (valid_alloc_range_dec (p, n)); try destruct range_in_dec;
-      destruct (low_mem_restr (Ptr.block p)); try done; inv PU;
+      destruct (low_mem_restr (MPtr.block p)); try done; inv PU;
         try (by refine (alloc_ptr_non_stack_preserves_mem_partitioning 
           _ _ _ _ _ _ _ MRP _ ABI)); 
         try apply (alloc_ptr_stack_preserves_mem_partitioning 
@@ -847,7 +847,7 @@ Proof.
   Case "BufferedFree".
     unfold part_update, apply_buffer_item in *.
     destruct k;
-      try (destruct (low_mem_restr (Ptr.block p)); inv PU; try done;
+      try (destruct (low_mem_restr (MPtr.block p)); inv PU; try done;
         by refine (free_ptr_non_stack_preserves_mem_partitioning 
           _ _ _ _ _ _ MRP _ ABI)).
     destruct (pointer_in_range_list p (part t)) as [] _eqn : PIR; [|done].
@@ -919,7 +919,7 @@ Qed.
 Lemma store_ptr_mem_consistent:
   forall m c p v m',
     store_ptr c m p v = Some m' ->
-    mrestr m (Ptr.block p) = true.
+    mrestr m (MPtr.block p) = true.
 Proof.
   intros m c p v m' ST.
 
@@ -1077,7 +1077,7 @@ Proof.
     unfold is_item_scratch_update in SCRATCH.
     destruct bi as [pi ci vi|pi ni []|pi []]; try left; done.
   destruct bi as [| pi ni []|]; try done.
-  destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR;
+  destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR;
     [|by left; destruct pi; simpl in *].
   right. split. done.
   intros [p'' n''] k'' ROVER RA.
@@ -1145,7 +1145,7 @@ Proof.
   intros bi' IN. 
   specialize (BUNAL bi' (in_cons bi _ _ IN)).
   destruct bi' as [| p' n' k' |]; try done.
-  destruct (low_mem_restr (Ptr.block p')) as [] _eqn : LMR. 
+  destruct (low_mem_restr (MPtr.block p')) as [] _eqn : LMR. 
     destruct BUNAL as [? | [K NRA]]. 
       by destruct p'; simpl in *; rewrite LMR in *.
     right. split. done.
@@ -1361,7 +1361,7 @@ Proof.
   buffer_item_cases (destruct bi as [p' c' v'|p' n' k'|p' k']) Case.
  
   Case "BufferedWrite".
-    destruct (low_mem_restr (Ptr.block p')) as [] _eqn : LMR;
+    destruct (low_mem_restr (MPtr.block p')) as [] _eqn : LMR;
       destruct (chunk_inside_range_list p' c' sp); try done;
         inv PU; apply (PI p n MP IN).
 
@@ -1649,7 +1649,7 @@ Proof.
 
   Case "BufferedWrite".
     rewrite (load_store_other ABI). done.
-    destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR.
+    destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR.
       destruct p; destruct pi; left; intro; subst;
         simpl in *; by rewrite LMR in SCR.
     destruct (chunk_inside_range_list pi ci (part t)) as [] _eqn:CIL;
@@ -1662,7 +1662,7 @@ Proof.
   Case "BufferedAlloc".
     rewrite (load_alloc_other ABI). done.
     destruct ki; destruct valid_alloc_range_dec; try done; try (
-      destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR; try done;
+      destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR; try done;
         by destruct p; destruct pi; left; intro; subst; simpl in *; 
           rewrite LMR in SCR).
     inv PU.
@@ -1681,7 +1681,7 @@ Proof.
     destruct Fspec as [ni RA].
     rewrite (load_free_other ABI RA). done.
     destruct ki; try (
-      destruct (low_mem_restr (Ptr.block pi)) as [] _eqn : LMR; try done;
+      destruct (low_mem_restr (MPtr.block pi)) as [] _eqn : LMR; try done;
         by destruct p; destruct pi; left; intro; subst; simpl in *; 
           rewrite LMR in SCR).
     destruct (pointer_in_range_list pi (part t)) as [] _eqn : PIR; try done.
@@ -1750,7 +1750,7 @@ Proof.
   
   simpl in IN. 
   destruct bi as [? ? ? | p' ? [] | ? []]; try (by apply IH).
-  destruct (low_mem_restr (Ptr.block p')) as [] _eqn : LMR.
+  destruct (low_mem_restr (MPtr.block p')) as [] _eqn : LMR.
     by apply IH.
   simpl in IN. destruct IN as [E | IN].
     inv E. by destruct p.
@@ -1774,7 +1774,7 @@ Proof.
     unfold tupdate. destruct (peq t' t) as [-> | _]; [|done].
     rewrite BS in BDISJ. simpl in BDISJ.
     destruct bi as [p c v | p n [] | p []]; try done.
-    destruct (low_mem_restr (Ptr.block p)); try done.
+    destruct (low_mem_restr (MPtr.block p)); try done.
     by destruct BDISJ.
   split.
     (* Buffers are still pairwise disjoint *)
@@ -1783,7 +1783,7 @@ Proof.
     destruct (peq t'' t) as [-> | N1]; destruct (peq t' t) as [-> | N2]; 
       try done; rewrite BS in BSDISJ; simpl in BSDISJ;
         destruct bi as [p c v | p n [] | p []]; try done;
-          destruct (low_mem_restr (Ptr.block p)); try done.
+          destruct (low_mem_restr (MPtr.block p)); try done.
       eby eapply range_lists_disjoint_tail1.
     eby eapply range_lists_disjoint_tail2.
   (* Buffers are disjoint from all partitions *)
@@ -1798,7 +1798,7 @@ Proof.
          the unbuffering took place *)
       destruct bi as [p c v | p n [] | p []]; try done; simpl in PU;
         simpl in BDISJ;
-        try destruct (low_mem_restr (Ptr.block p)) as [] _eqn : LMR;
+        try destruct (low_mem_restr (MPtr.block p)) as [] _eqn : LMR;
           clarify; try destruct (chunk_inside_range_list p c (sp t));
             clarify; try destruct valid_alloc_range_dec; clarify;
               try destruct range_in_dec as [RIx | RNIx]; clarify;
@@ -1824,7 +1824,7 @@ Proof.
   (* Buffer in other thread, partition same *)
   destruct bi as [p c v | p n [] | p []]; try done; simpl in PU;
     simpl in BDISJ; simpl in BSDISJ;
-      try destruct (low_mem_restr (Ptr.block p)) as [] _eqn : LMR;
+      try destruct (low_mem_restr (MPtr.block p)) as [] _eqn : LMR;
         clarify; try destruct (chunk_inside_range_list p c (sp t));
           clarify; try destruct valid_alloc_range_dec; clarify;
               try destruct range_in_dec as [RIx | RNIx]; clarify;
@@ -2218,7 +2218,7 @@ Proof.
     replace tr with (range_remove p (tmp t)).
       eapply free_ptr_preserves_mem_partitioning. edone. edone.
       exists n. rewrite TBUFF; apply in_eq.
-    rewrite TBUFF. simpl. eby destruct (Ptr.eq_dec p p).
+    rewrite TBUFF. simpl. eby destruct (MPtr.eq_dec p p).
   split. (* Memory related with partitioning in source *) 
     eby eapply apply_buffer_preserves_mem_partitioning. 
   intro t'.
@@ -2249,7 +2249,7 @@ Proof.
       apply <- buffered_states_related_prepend_tgt.
       apply <- buffered_states_related_prepend_src; try edone.
       rewrite TPART in BSREL. edone.
-      simpl. by destruct (Ptr.eq_dec p p).
+      simpl. by destruct (MPtr.eq_dec p p).
     destruct BSREL as (_ & _ & E & _). by rewrite E in TPART.
   (* Other threads - use the memory "sameness" *)
   rewrite ! update_partitioning_o, tupdate_o; try done.

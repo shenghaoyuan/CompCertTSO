@@ -117,14 +117,14 @@ Inductive env_item_related : scratch_vals ->       (* C#minor 'scratch' values *
   env_item_related svals
                    fs (Some sp)
                    (Cstacked.Env_stack_scalar c offs)
-                   (Ptr.add sp (Int.repr offs), Vscalar c)
+                   (MPtr.add sp (Int.repr offs), Vscalar c)
 | env_item_related_array: forall svals fs sp offs size
   (OLB: offs >= 0)
   (OHB: offs + (Zmax 1 size) <= fs),
   env_item_related svals
                    fs (Some sp)
                    (Cstacked.Env_stack_array offs)
-                   (Ptr.add sp (Int.repr offs), Varray size).
+                   (MPtr.add sp (Int.repr offs), Varray size).
 
 Definition partitioning := positive -> list arange.
 
@@ -639,7 +639,7 @@ Fixpoint pointer_in_range_list (p : pointer) (l : list arange) : bool :=
   match l with
     | nil => false
     | (p', _) :: t => 
-        if Ptr.eq_dec p p' 
+        if MPtr.eq_dec p p' 
           then true
           else pointer_in_range_list p t
   end.
@@ -648,7 +648,7 @@ Fixpoint range_remove (p : pointer) (rs : list arange) : list arange :=
   match rs with
     | nil => nil
     | (p', s')::rest => 
-        if Ptr.eq_dec p' p 
+        if MPtr.eq_dec p' p 
           then rest 
           else (p', s')::(range_remove p rest)
   end.
@@ -662,7 +662,7 @@ Proof.
   done.
   
   simpl.
-  destruct (Ptr.eq_dec ph p) as [-> | N].
+  destruct (MPtr.eq_dec ph p) as [-> | N].
   intro. by right.
   simpl. 
   intros [E | IN]. left; done. 
@@ -676,7 +676,7 @@ Proof.
   induction l as [|[ph nh] l IH].
   done.
   
-  simpl. destruct (Ptr.eq_dec ph p) as [-> | N].
+  simpl. destruct (MPtr.eq_dec ph p) as [-> | N].
     intros [E | IN]. inv E; by left.
     by right.
   intros [E | IN]. inv E. right; by apply in_eq.
@@ -705,7 +705,7 @@ Definition part_update  (bi : buffer_item)
           then Some (range_remove p part)
           else None
     | BufferedWrite p c v => 
-        if low_mem_restr (Ptr.block p)
+        if low_mem_restr (MPtr.block p)
           then Some part
           else if chunk_inside_range_list p c part 
             then Some part
@@ -718,12 +718,12 @@ Definition part_update  (bi : buffer_item)
           else None
     | BufferedAlloc p n _ => 
         if valid_alloc_range_dec (p, n) 
-          then if low_mem_restr (Ptr.block p) 
+          then if low_mem_restr (MPtr.block p) 
             then Some part
             else None
           else None
     | BufferedFree p _ => 
-        if low_mem_restr (Ptr.block p) 
+        if low_mem_restr (MPtr.block p) 
           then Some part
           else None
   end.
@@ -860,7 +860,7 @@ Fixpoint buffer_scratch_ranges (b : list buffer_item) : list arange :=
   match b with
     | nil => nil
     | BufferedAlloc p n MObjStack :: br =>
-        if low_mem_restr (Ptr.block p) 
+        if low_mem_restr (MPtr.block p) 
           then buffer_scratch_ranges br 
           else (p, n) :: (buffer_scratch_ranges br)
     | _ :: br => buffer_scratch_ranges br
@@ -1144,7 +1144,7 @@ Proof.
     eapply buffers_related_free; try edone.
     rewrite PUs in PUB; inv PUB.
     eapply IHBR'. edone.
-    simpl in PUt. destruct Ptr.eq_dec; try done. by inv PUt.
+    simpl in PUt. destruct MPtr.eq_dec; try done. by inv PUt.
 
   Case "buffers_related_other".
     destruct (fold_left_opt_consD PUBt) as [tpi (PUt & PUBt2)].

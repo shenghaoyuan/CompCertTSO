@@ -208,12 +208,12 @@ Function sem_add (v1:val) (t1:type) (v2: val) (t2:type) : option val :=
       end
   | add_case_pi ty =>                   (**r pointer plus integer *)
       match v1,v2 with
-      | Vptr p, Vint n2 => Some (Vptr (Ptr.add p (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vptr p, Vint n2 => Some (Vptr (MPtr.add p (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end   
   | add_case_ip ty =>                   (**r integer plus pointer *)
       match v1,v2 with
-      | Vint n1, Vptr p => Some (Vptr (Ptr.add p (Int.mul (Int.repr (sizeof ty)) n1)))
+      | Vint n1, Vptr p => Some (Vptr (MPtr.add p (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end   
   | add_default => None
@@ -233,15 +233,15 @@ Function sem_sub (v1:val) (t1:type) (v2: val) (t2:type) : option val :=
       end
   | sub_case_pi ty =>            (**r pointer minus  *)
       match v1,v2 with
-      | Vptr p, Vint n2 => Some (Vptr (Ptr.sub_int p (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vptr p, Vint n2 => Some (Vptr (MPtr.sub_int p (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end
   | sub_case_pp ty =>          (**r pointer minus pointer *)
       match v1,v2 with
       | Vptr p1, Vptr p2 => 
-          if zeq (Ptr.block p1) (Ptr.block p2) then
+          if zeq (MPtr.block p1) (MPtr.block p2) then
             if Int.eq (Int.repr (sizeof ty)) Int.zero then None
-            else Some (Vint (Int.divu (Int.sub (Ptr.offset p1) (Ptr.offset p2))
+            else Some (Vint (Int.divu (Int.sub (MPtr.offset p1) (MPtr.offset p2))
                             (Int.repr (sizeof ty))))
           else None
       | _, _ => None
@@ -367,9 +367,9 @@ Function sem_cmp (c:comparison)
   | cmp_case_ipip =>
       match v1,v2 with
       | Vint n1, Vint n2 => Some (Val.of_bool (Int.cmp c n1 n2))
-      | Vptr p1,  Vptr p2  => Val.option_val_of_bool3 (Ptr.cmp c p1 p2)
-(*        if zeq (Ptr.block p1) (Ptr.block p2)
-           then Some (Val.of_bool (Int.cmp c (Ptr.offset p1) (Ptr.offset p2)))
+      | Vptr p1,  Vptr p2  => Val.option_val_of_bool3 (MPtr.cmp c p1 p2)
+(*        if zeq (MPtr.block p1) (MPtr.block p2)
+           then Some (Val.of_bool (Int.cmp c (MPtr.offset p1) (MPtr.offset p2)))
            else sem_cmp_mismatch c *)
       | Vptr p, Vint n =>
           if Int.eq n Int.zero then sem_cmp_mismatch c else None
@@ -818,7 +818,7 @@ Inductive cl_step : state -> thread_event -> state -> Prop :=    (* defn cl_step
               (SKlval e env (EKfield delta ek) ) 
 
  | StepFstruct2 : forall (p:pointer) (delta:Z) (ek:expr_cont) (env:env) (p':pointer),
-     p' = Ptr.add p  (Int.repr delta)  ->
+     p' = MPtr.add p  (Int.repr delta)  ->
      cl_step  (SKval (Vptr p) env (EKfield delta ek) )  
               TEtau
               (SKval (Vptr p') env ek ) 
@@ -1435,7 +1435,7 @@ Definition cl_step_fn1 (s : state) : cl_step_res :=
   | (SKval (Vptr p) env (EKfield delta k)) =>
       Rsimple 
               TEtau
-             (SKval (Vptr (Ptr.add p (Int.repr delta))) env k)
+             (SKval (Vptr (MPtr.add p (Int.repr delta))) env k)
   | (SKexpr (Expr (Esizeof ty') ty) env k) =>
       Rsimple 
               TEtau
@@ -1885,7 +1885,7 @@ Definition cl_step_fn (s : state) (te : thread_event) : option state :=
   | Rread   p c f =>
       match te with
       | TEmem (MEread p' c' v) => 
-           if Ptr.eq_dec p p' then 
+           if MPtr.eq_dec p p' then 
              if memory_chunk_eq_dec c c' then 
                if Val.has_type v (type_of_chunk c) then Some (f v)
                else None
@@ -1916,7 +1916,7 @@ Definition cl_step_fn (s : state) (te : thread_event) : option state :=
   | Rrmw p c i f => 
       match te with
       | TEmem (MErmw p' c' v i') => 
-           if Ptr.eq_dec p p' then 
+           if MPtr.eq_dec p p' then 
              if memory_chunk_eq_dec c c' then
                if rmw_instr_dec i i' then
                  if Val.has_type v (type_of_chunk c) then Some (f v)

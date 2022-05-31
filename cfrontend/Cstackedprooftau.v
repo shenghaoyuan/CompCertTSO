@@ -141,10 +141,10 @@ Proof.
           | H : context[if ?E then _ else _] |- _ => destruct E; clarify
           | |- context[Val.of_bool ?E] => destruct E
             end);
-    try (by destruct Ptr.sub_ptr; simpl in EB; clarify);
+    try (by destruct MPtr.sub_ptr; simpl in EB; clarify);
     try (by unfold Cminorops.eval_compare_null in EB;
          destruct Int.eq; destruct c; simpl in EB; clarify).
-    by destruct Ptr.cmp; inv EB.
+    by destruct MPtr.cmp; inv EB.
 Qed.
 
 Lemma is_call_cont_related:
@@ -320,7 +320,7 @@ Proof.
   done.
   (* Free *)
   split. 
-    simpl; destruct Ptr.eq_dec; done.
+    simpl; destruct MPtr.eq_dec; done.
   split. 
     simpl. by rewrite fold_left_opt_app, PUB.
   done.
@@ -511,7 +511,7 @@ Qed.
 Lemma tso_bound_to_scratch:
   forall tso p bnd,
     tso_memory_upper_bound bnd tso ->
-    bnd <= Ptr.block p ->
+    bnd <= MPtr.block p ->
     scratch_ptr p.
 Proof.
   intros tso [b ofs] bnd (_ & _ & BND) LE.
@@ -543,7 +543,7 @@ Lemma allocs_scratch_disjoint_to_unbuffer_safe:
     (DISJ: range_list_disjoint rs)
     (VARs: forall r, In r rs -> valid_alloc_range r)
     (TSOBND: tso_memory_upper_bound bnd stso)
-    (INS : forall p' n', In (p', n') rs -> bnd <= Ptr.block p')
+    (INS : forall p' n', In (p', n') rs -> bnd <= MPtr.block p')
     (BAs : is_buffer_ins t (alloc_items_of_ranges rs) stso stso'),
       unbuffer_safe stso'.
 Proof.
@@ -681,7 +681,7 @@ Proof.
                                 (Zle_refl _) LIM (or_intror _ (refl_equal _)))
     as [rs (ROV & RLD & VARs & INOSCR)].
 
-  assert(BNDrs : forall p' n', In (p', n') rs -> bnd <= Ptr.block p').
+  assert(BNDrs : forall p' n', In (p', n') rs -> bnd <= MPtr.block p').
     intros p' n' IN'.
     specialize(VARs _ IN'). destruct(INOSCR _ IN') as [[RIN _]|B].
       destruct p'; destruct p.

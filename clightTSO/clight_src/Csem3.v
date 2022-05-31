@@ -153,7 +153,7 @@ Definition cl_step_fn1 (s : state) : cl_step_res :=
       | _ => Rnostep
       end
   | (SKval (Vptr p) env (EKfield delta k)) =>
-      Rsimple TEtau (SKval (Vptr (Ptr.add p (Int.repr delta))) env k)
+      Rsimple TEtau (SKval (Vptr (MPtr.add p (Int.repr delta))) env k)
   | (SKexpr (Expr (Esizeof ty') ty) env k) =>
       Rsimple TEtau (SKval (Vint (Int.repr (sizeof ty'))) env k)
   | (SKexpr (Expr (Eunop op e) ty) env k) =>
@@ -467,7 +467,7 @@ Definition cl_step_fn (s : state) (te : thread_event) : option state :=
   | Rread   p c f =>
       match te with
       | TEmem (MEread p' c' v) => 
-           if Ptr.eq_dec p p' then 
+           if MPtr.eq_dec p p' then 
              if memory_chunk_eq_dec c c' then 
                if Val.has_type v (type_of_chunk c) then Some (f v)
                else None
@@ -498,7 +498,7 @@ Definition cl_step_fn (s : state) (te : thread_event) : option state :=
   | Rrmw p c i f => 
       match te with
       | TEmem (MErmw p' c' v i') => 
-           if Ptr.eq_dec p p' then 
+           if MPtr.eq_dec p p' then 
              if memory_chunk_eq_dec c c' then
                if rmw_instr_dec i i' then
                  if Val.has_type v (type_of_chunk c) then Some (f v)

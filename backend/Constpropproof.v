@@ -233,7 +233,7 @@ Proof.
   rewrite <- symbols_preserved in A.
   rewrite B in FIND. rewrite H1 in FIND. 
   rewrite Genv.find_funct_find_funct_ptr in FIND.
-  by simpl; rewrite Ptr.add_zero_r, A in *.
+  by simpl; rewrite MPtr.add_zero_r, A in *.
   rewrite symbols_preserved. destruct (Genv.find_symbol ge i).
   intro. apply function_ptr_translated. auto.
   congruence.
