@@ -1,0 +1,405 @@
+%========================================================================%
+%                                                                        %
+%                    CompcertTSO                                         %
+%                                                                        %
+%          Jaroslav Sevcik, University of Cambridge                      %
+%          Viktor Vafeiadis, University of Cambridge                     %
+%          Francesco Zappa Nardelli, INRIA Rocquencourt                  %
+%          Suresh Jagannathan, Purdue University                         %
+%          Peter Sewell, University of Cambridge                         %
+%                                                                        %
+%          (building on CompCert 1.5 and a 1.8 pre-release)              %
+%                                                                        %
+%  This document and the CompCertTSO sources are copyright 2005, 2006,   %
+%  2007, 2008, 2009, 2010, 2011 Institut National de Recherche en        %
+%  Informatique et en Automatique (INRIA), and Suresh Jagannathan,       %
+%  Jaroslav Sevcik, Peter Sewell and Viktor Vafeiadis.                   %
+%                                                                        %
+%  All rights reserved.  This file is distributed under the terms of     %
+%  the INRIA Non-Commercial License Agreement.                           %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%========================================================================%
+
+embed 
+{{ coq
+(* This is the first half of Csyntax, generated from Csyntax1.ott  *)
+}}
+
+embed
+{{ coq
+(* *********************************************************************)
+(*                                                                     *)
+(*              The Compcert verified compiler                         *)
+(*                                                                     *)
+(*          Xavier Leroy, INRIA Paris-Rocquencourt                     *)
+(*                                                                     *)
+(*  Copyright Institut National de Recherche en Informatique et en     *)
+(*  Automatique.  All rights reserved.  This file is distributed       *)
+(*  under the terms of the GNU General Public License as published by  *)
+(*  the Free Software Foundation, either version 2 of the License, or  *)
+(*  (at your option) any later version.  This file is also distributed *)
+(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*                                                                     *)
+(* *********************************************************************)
+}}
+
+
+embed
+{{ tex-preamble
+\renewcommand{\ottnt}[1]{ { \color{blue}\mathit{#1} } }
+\renewcommand{\ottmv}[1]{ { \color{blue} \mathit{#1} } }
+%\renewcommand{\ottkw}[1]{ {\pmb{\color{black}\texttt{#1} } }   }
+%\renewcommand{\ottsym}[1]{ {\pmb{\color{black}\texttt{#1} } }  }
+\renewcommand{\ottkw}[1]{ \texttt{#1} }
+\renewcommand{\ottsym}[1]{ \texttt{#1} }
+\renewcommand{\ottcom}[1]{\textrm{#1} }
+
+%\usepackage{fancyheadings}
+%\pagestyle{fancy} 
+%\chead{foo}
+}}
+
+% embed
+% {{ tex
+% \section{Abstract syntax and operational semantics for ClightTSO}
+% }}
+
+
+
+embed 
+{{ coq 
+(** Abstract syntax for the Clight language *)
+
+Require Import Coqlib.
+Require Import Errors. 
+Require Import Integers.
+Require Import Floats.
+Require Import Ast.
+
+(** * Abstract syntax *)
+
+(** ** Types *)
+
+
+}}
+
+
+
+
+
+metavar Z, len ::= {{ coq Z }}  {{ phantom }} {{ com integer }}
+metavar f ::= {{ coq float }} {{ phantom }} {{ com float }}
+
+% the Coq int type is taken from Integers via Ast
+metavar n ::= {{ coq int }} {{ phantom }} {{ com int }}
+
+% importing id from AST.v
+metavar ident, id ::=   {{ com  identifier }} 
+ {{ coq ident}}  {{ phantom }} 
+ {{ lex alphanum}}
+
+
+
+
+embed
+{{ coq
+
+(** Clight types are similar to those of C.  They include numeric types,
+  pointers, arrays, function types, and composite types (struct and 
+  union).  Numeric types (integers and floats) fully specify the
+  bit size of the type.  An integer type is a pair of a signed/unsigned
+  flag and a bit size: 8, 16 or 32 bits. *)
+
+}}
+
+
+grammar
+
+signedness :: '' ::=  {{ com Signedness }}
+   | Signed   ::   :: Signed
+   | Unsigned ::   :: Unsigned
+
+
+intsize :: '' ::= {{ com Integer sizes }}
+   | I8       ::   :: I8 
+   | I16      ::   :: I16
+   | I32      ::   :: I32
+
+embed 
+{{ coq
+(** Float types come in two sizes: 32 bits (single precision)
+  and 64-bit (double precision). *)
+}}
+
+grammar
+floatsize :: '' ::=  {{ com Float sizes }}
+   | F32      ::   :: F32
+   | F64      ::   :: F64
+
+embed
+{{ coq
+(** The syntax of type expressions.  Some points to note:
+- Array types [Tarray n] carry the size [n] of the array.
+  Arrays with unknown sizes are represented by pointer types.
+- Function types [Tfunction targs tres] specify the number and types
+  of the function arguments (list [targs]), and the type of the
+  function result ([tres]).  Variadic functions and old-style unprototyped
+  functions are not supported.
+- In C, struct and union types are named and compared by name.
+  This enables the definition of recursive struct types such as
+<<
+  struct s1 { int n; struct * s1 next; };
+>>
+  Note that recursion within types must go through a pointer type.
+  For instance, the following is not allowed in C.
+<<
+  struct s2 { int n; struct s2 next; };
+>>
+  In Clight, struct and union types [Tstruct id fields] and
+  [Tunion id fields] are compared by structure: the [fields]
+  argument gives the names and types of the members.  The identifier
+  [id] is a local name which can be used in conjuction with the
+  [Tcomp_ptr] constructor to express recursive types.  [Tcomp_ptr id]
+  stands for a pointer type to the nearest enclosing [Tstruct]
+  or [Tunion] type named [id].  For instance. the structure [s1]
+  defined above in C is expressed by
+<<
+  Tstruct "s1" (Fcons "n" (Tint I32 Signed)
+               (Fcons "next" (Tcomp_ptr "id")
+               Fnil))
+>>
+  Note that the incorrect structure [s2] above cannot be expressed at
+  all, since [Tcomp_ptr] lets us refer to a pointer to an enclosing
+  structure or union, but not to the structure or union directly.
+*)
+}}
+
+grammar
+type, ty :: 'T' ::= {{ com Types }} {{ coq-universe Type }}
+   | void                         ::   :: void     {{ com the void type }}                 
+   | int ( intsize , signedness ) ::   :: int      {{ com integer types }}                   
+   | float ( floatsize )          ::   :: float    {{ com floating-point types }}            
+   | pointer ( ty )               ::   :: pointer  {{ com pointer types (\texttt{*ty}) }}     
+   | array ( ty , len )           ::   :: array    {{ com array types (\texttt{ty[len]}) }}         
+   | function ( tys , ty )        ::   :: function {{ com function types }}                  
+   | struct ( id , phi )          ::   :: struct   {{ com struct types }}                    
+   | union ( id , phi )           ::   :: union    {{ com union types }}                     
+   | comp_pointer ( id )          ::   :: comp_ptr {{ com pointer to named struct or union }}
+   | typeof e                     :: M :: type     {{ coq (typeof [[e]]) }} 
+   | ( ty )                       :: S :: paren    {{ coq [[ty]] }}
+% for typesetting diagrams:
+   | tyint                        :: M :: tyint {{ tex {\texttt{int} } }} {{ coq Tint I32 Signed }}
+   | typtr                        :: M :: typtr {{ tex {\texttt{ptr} } }} {{ coq Tpointer (Tint I32 Signed) }}
+
+typelist, tys {{ tex \ottnt{ty}^* }}  :: 'T' ::= {{ com Type list }} {{ coq-universe Type }}
+   | nil                          ::   :: nil
+   | ty '::' tys                  ::   :: cons
+
+fieldlist, phi {{ tex \phi }}  :: 'F' ::=  {{ com Field lists }} {{ coq-universe Type }}
+   | nil                          ::   :: nil
+   | ( id , ty ) '::' phi         ::   :: cons
+
+
+
+embed
+{{ coq
+(** ** Expressions *)
+
+(** Arithmetic and logical operators. *)
+}}
+
+
+grammar
+unary_operation, op1 {{ tex \textit{op}_1 }}  :: 'O' ::= {{ com unary }}
+   | !     ::   :: notbool   {{ com Boolean negation }}       {{ tex \texttt{!} }}
+   | ~     ::   :: notint    {{ com Integer complement }}     {{ tex \texttt{\char'176} }}
+   | -     ::   :: neg       {{ com opposite }}               {{ tex \texttt{-} }}
+
+binary_operation, op2 {{ tex \textit{op}_2 }}  :: 'O' ::= {{ com binary }}
+   | +     ::   :: add       {{ com addition }}               {{ tex \texttt{\char'053} }}
+   | -     ::   :: sub       {{ com subtraction }}            {{ tex \texttt{\char'055} }}
+   | *     ::   :: mul       {{ com multiplication }}         {{ tex \texttt{*} }}
+   | /     ::   :: div       {{ com division }}               {{ tex \texttt{/} }}
+   | '%'   ::   :: mod       {{ com modulo }}                 {{ tex \texttt{\%} }}
+   | &     ::   :: and       {{ com bitwise and }}            {{ tex \texttt{\&} }}
+   | '|'   ::   :: or        {{ com bitwise or }}             {{ tex \texttt{\char'174} }}
+   | ^     ::   :: xor       {{ com bitwise xor }}            {{ tex \texttt{\char'136} }}
+   | <<    ::   :: shl       {{ com left shift }}             {{ tex \texttt{<<} }}
+   | >>    ::   :: shr       {{ com right shift }}            {{ tex \texttt{>>} }}
+   | ==    ::   :: eq        {{ com equality }}               {{ tex \texttt{\char'075\char'075} }}
+   | !=    ::   :: ne        {{ com not equal }}              {{ tex \texttt{\char'041\char'075} }}
+   | <     ::   :: lt        {{ com less than }}              {{ tex \texttt{<} }}
+   | >     ::   :: gt        {{ com greater than }}           {{ tex \texttt{>} }}
+   | <=    ::   :: le        {{ com less than equal }}        {{ tex \texttt{<\char'075} }}
+   | >=    ::   :: ge        {{ com greater than equal }}     {{ tex \texttt{>\char'075} }}
+
+embed 
+{{ coq
+(** Clight expressions are a large subset of those of C.
+  The main omissions are string literals and assignment operators
+  ([=], [+=], [++], etc).  In Clight, assignment is a statement,
+  not an expression.  
+
+  All expressions are annotated with their types.  An expression
+  (type [expr]) is therefore a pair of a type and an expression
+  description (type [expr_descr]).
+*)
+
+}}
+
+grammar
+expr, e :: '' ::= {{ com typed expression }}  {{ coq-universe Type }}
+ | ( a : ty )        ::    :: Expr   {{ com expression }} {{ tex {[[a]]^{[[ty]]} } }}
+ | ( e )             :: M  :: paren        {{ coq ( [[e]] ) }} 
+% for typesetting diagrams
+ | e1hat             :: M  :: e1hat {{ tex \hat{\ottnt{e} }_1 }}  {{ coq DUMMY }}
+ | e2hat             :: M  :: e2hat {{ tex \hat{\ottnt{e} }_2 }}  {{ coq DUMMY }}
+
+expr_descr, a  :: 'E' ::= {{ com basic expressions }}  {{ coq-universe Type }}
+ | n                 ::    :: const_int    {{ com integer literal }}
+ | f                 ::    :: const_float  {{ com float literal }}
+ | id                ::    :: var          {{ com variable }}
+ | * e               ::    :: deref        {{ com unary pointer dereference }}
+ | & e               ::    :: addrof       {{ com address-of }}
+ | op1 e             ::    :: unop         {{ com unary operation }}
+ | e1 op2 e2         ::    :: binop        {{ com binary operation }}  {{ order [[op2]] [[e1]] [[e2]] }}
+ | ( ty ) e          ::    :: cast         {{ com type cast }}
+ | e1 ? e2 : e3      ::    :: condition    {{ com conditional }}
+ | e1 && e2          ::    :: andbool      {{ com sequential and }}  
+ | e1 || e2          ::    :: orbool       {{ com sequential or }}  
+ | sizeof ( ty )     ::    :: sizeof       {{ com size of a type }}
+ | e . id            ::    :: field        {{ com access to a member of a struct or union }} 
+                                             {{ tex [[e]] \ottsym{.} [[id]] }}
+ | ( a )             :: M  :: paren        {{ coq ( [[a]] ) }} 
+
+embed 
+{{ coq
+
+(** Extract the type part of a type-annotated Clight expression. *)
+
+Definition typeof (e: expr) : type :=
+  match e with Expr de te => te end.
+
+}}
+
+embed
+{{ coq
+(** ** Statements *)
+
+(** Clight statements include all C statements.
+  Only structured forms of [switch] are supported; moreover,
+  the [default] case must occur last.  Blocks and block-scoped declarations
+  are not supported. *)
+
+}}
+
+
+
+grammar
+opt_lhs  :: 'OL' ::= {{ com optional lhs expression }} {{ coq option (ident * type) }} {{ coq-universe Type }}
+ |                ::    :: None  {{ coq  None }}
+ | ( id : ty ) =  ::    :: Some  {{ coq  (Some ([[id]],[[ty]])) }}
+
+opt_e  :: 'OE' ::= {{ com optional expression }} {{ coq option expr }} {{ coq-universe Type }}
+ |                ::    :: None  {{ coq  None }}
+ | e              ::    :: Some  {{ coq  (Some [[e]]) }}
+
+es {{ tex \ottnt{e}^* }} :: '' ::= {{ com expression list }} {{ coq list expr }}  {{ coq-universe Type }}
+ | nil            :: M  :: Nil {{ coq nil }}
+ | e '::' es      :: M  :: Cons {{ coq ([[e]]::[[es]]) }}
+
+
+metavar
+  label, l ::= {{ coq ident }}  {{ com label }}
+
+grammar
+atomic_statement, astmt :: 'AS' ::= {{ com atomic }}
+   | CAS                      ::   :: cas       {{ com compare and swap }}
+   | ATOMIC_INC               ::   :: lkinc     {{ com locked inc }}
+
+grammar
+statement, s         :: 'S' ::= {{ com statements }}  {{ coq-universe Type }}
+  | skip                      ::   :: skip          {{ com do nothing }}
+  | e1 = e2                   ::   :: assign        {{ com  assignment [lvalue = rvalue] }}
+  | opt_lhs e' ( es )         ::   :: call          {{ com function or procedure call }}
+  | s1 ; s2                   ::   :: sequence      {{ com sequence }}
+  | if ( e1 ) then s1 else s2 ::   :: ifthenelse    {{ com conditional }}
+  | while ( e ) do s          ::   :: while         {{ com while }}
+  | do s while ( e )          ::   :: dowhile       {{ com do while }} {{ order [[e]] [[s]] }}
+  | for ( s1 ; e2 ; s3 ) s    ::   :: for           {{ com for loop }}
+  | break                     ::   :: break         {{ com break }}
+  | continue                  ::   :: continue      {{ com continue }}
+  | return opt_e              ::   :: return        {{ com return }}
+  | switch ( e ) ls           ::   :: switch        {{ com switch }}
+  | l : s                     ::   :: label         {{ com labelled statement }}
+  | goto l                    ::   :: goto          {{ com goto }}
+  | thread_create ( e1 , e2 ) ::   :: thread_create {{ com thread creation }}  
+  | ( s )                     :: M :: paren         {{ coq ( [[s]] ) }} 
+  | opt_lhs astmt ( es )      ::   :: atomic        {{ com atomic operation }}
+  | mfence                    ::   :: mfence        {{ com mfence }}
+
+
+labeled_statements, ls  :: 'LS' ::=  {{ com labeled statements }}  {{ coq-universe Type }}
+  | default : s              ::    :: default       {{ com default }}
+  | case n : s ; ls          ::    :: case          {{ com labeled case }}
+
+embed 
+{{ coq
+(** ** Functions *)
+
+(** A function definition is composed of its return type ([fn_return]),
+  the names and types of its parameters ([fn_params]), the names
+  and types of its local variables ([fn_vars]), and the body of the
+  function (a statement, [fn_body]). *)
+
+Record function : Type := mkfunction {
+  fn_return: type;
+  fn_params: list (ident * type);
+  fn_vars: list (ident * type);
+  fn_body: statement
+}.
+
+(** Functions can either be defined ([Internal]) or declared as
+  external functions ([External]). *)
+
+Inductive fundef : Type :=
+  | Internal: function -> fundef
+  | External: ident -> typelist -> type -> fundef.
+
+(** ** Programs *)
+
+(** A program is a collection of named functions, plus a collection
+  of named global variables, carrying their types and optional initialization 
+  data.  See module [Ast] for more details. *)
+
+Definition program : Type := Ast.program fundef type.
+
+}}
+
+% for typesetting the top-level definition of programs
+
+grammar
+arglist  :: 'ARGS2' ::=    {{ com Argument lists }} {{ coq-universe Type }} {{ phantom }}
+   |                       ::   :: nil      
+   | ty  id                ::   :: one
+   | ty  id  , arglist     ::   :: cons
+
+varlist  :: 'VARS2' ::=    {{ com Local variable lists }} {{ coq-universe Type }} {{ phantom }}
+   |                       ::   :: nil      
+   | ty  id ; varlist      ::   :: cons
+
+
+fndefn_internal {{ coq function_dummy }} :: 'FUNS' ::=   {{ com function definition }} {{ phantom }}
+   | ty id ( arglist ) { varlist   s }  ::  :: fndefn
+
+metavar dcls ::= {{ phantom }} {{ com global variable declarations }}
+metavar fndefns ::= {{ phantom }} {{ com function declarations }}
+
+grammar
+program :: 'P' ::= {{ com programs }}  {{ phantom }}
+   | dcls fndefns main = id :: :: program
+

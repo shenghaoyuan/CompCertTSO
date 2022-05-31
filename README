@@ -1,0 +1,111 @@
+
+                  CompcertTSO 
+
+        Jaroslav Sevcik, University of Cambridge
+        Viktor Vafeiadis, University of Cambridge
+        Francesco Zappa Nardelli, INRIA Rocquencourt
+        Suresh Jagannathan, Purdue University
+        Peter Sewell, University of Cambridge
+
+        (building on CompCert 1.5 and a 1.8 pre-release)
+
+This document and the CompCertTSO sources are copyright 2005, 2006,
+2007, 2008, 2009, 2010, 2011 Institut National de Recherche en
+Informatique et en Automatique (INRIA), and Suresh Jagannathan,
+Jaroslav Sevcik, Peter Sewell and Viktor Vafeiadis.
+
+All rights reserved.  This file is distributed under the terms of 
+the INRIA Non-Commercial License Agreement.
+
+
+
+Installation
+============
+
+Prerequisites: 
+
+- Coq 8.3pl2 or 8.3pl1
+
+- Ocaml 3.12.0 (Ocaml 3.11.* should work as well).
+
+- gcc
+
+  On x86-64 machines, an additional package (eg libc6-dev-i386) may
+  be necessary for gcc to build 32-bit binaries.
+
+- For a complete rebuild, including the Coq definition of ClightTSO,
+  which is partly generated from Ott sources, you will also need the
+  Ott tool, for which Version 0.20.3 is known to work.
+
+In the distribution directory, run the following commands
+(on Mac OS X replace "x86-linux" with "x86-macosx"):
+
+./configure x86-linux
+make depend
+make all
+
+This builds the compiler, interpreter and documentation.
+
+Invoking the compiler
+=====================
+
+There are some example ClightTSO programs in test/c, including fib.c.
+To compile and run fib.c from the distribution directory:
+
+./ccomp -stdlib runtime -o fib test/c/fib.c
+./fib
+
+From any other directory, one should change the -stdlib runtime option
+to point to the runtime directory of the distribution.
+
+The full list of command line options can be obtained by
+
+./ccomp -help
+
+
+Invoking the interpreter
+========================
+
+The interpreter runs the ClightTSO semantics for a single-threaded
+program, printing debug output.  To invoke it on a small example:
+
+./clighti -v clighttest/test-intfn2.c 
+
+
+Documentation
+=============
+
+Start from doc/index.html
+
+
+Directory structure
+===================
+
+lib                - general libraries (integers mod 32, maps etc.)
+common             - common definitions and theorems
+                      * values, memory, simulations, TSO machine etc.
+clightTSO          - semantics for ClightTSO
+                      * written in Ott, Coq files are generated
+cfrontend          - frontend parts of the compiler
+                     (Csharpminor and Cstacked languages +
+                      related compiler passes and proofs)
+backend            - the backend passes of the compiler
+                     (RTL - Machconcr definitions, semantics,
+                      passes and proofs)
+x86                - architecture-specific parts of the compiler
+                      * x86 semantics
+                      * plug-ins for machine-dependent parts
+                        of several compiler passes
+driver             - compiler wrapper that invokes individual passes
+interpreter        - sources for the interpreter
+extraction         - Coq -> Ocaml extraction script
+doc                - documentation (start from doc/index.html)
+test               - test C files from Leroy et al's CompCert
+examples           - multi-threaded C examples
+clighttest         - test of the semantics using the interpreter, 
+                     tests invoked by 'sh clighttest/runtests.sh' 
+                     (compares interpreter output to gcc)
+
+cil                - CIL library used for parsing C; the 
+                     directory is created by the configure script
+                     (by unpacking cil.tar.gz)

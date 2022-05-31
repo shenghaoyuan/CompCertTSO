@@ -1,0 +1,962 @@
+%========================================================================%
+%                                                                        %
+%                    CompcertTSO                                         %
+%                                                                        %
+%          Jaroslav Sevcik, University of Cambridge                      %
+%          Viktor Vafeiadis, University of Cambridge                     %
+%          Francesco Zappa Nardelli, INRIA Rocquencourt                  %
+%          Suresh Jagannathan, Purdue University                         %
+%          Peter Sewell, University of Cambridge                         %
+%                                                                        %
+%          (building on CompCert 1.5 and a 1.8 pre-release)              %
+%                                                                        %
+%  This document and the CompCertTSO sources are copyright 2005, 2006,   %
+%  2007, 2008, 2009, 2010, 2011 Institut National de Recherche en        %
+%  Informatique et en Automatique (INRIA), and Suresh Jagannathan,       %
+%  Jaroslav Sevcik, Peter Sewell and Viktor Vafeiadis.                   %
+%                                                                        %
+%  All rights reserved.  This file is distributed under the terms of     %
+%  the INRIA Non-Commercial License Agreement.                           %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%                                                                        %
+%========================================================================%
+
+embed
+ {{ coq
+(* This is the second third of Csem.v, from Csem2.ott *)
+}}
+
+% Rather than Ottify Values.v, Events.v, etc., we just make this glue layer of Ott phantom declarations
+grammar
+val, v :: 'V' ::= {{ com untyped values }} {{ phantom }} {{ coq val }}
+ | n            ::    :: int   {{ com integer value }} 
+ | f            ::    :: float {{ com floating point value }}
+ | p            ::    :: ptr   {{ com pointer }}
+ | undef        ::    :: undef {{ com undef }}  
+% | zero         :: M  :: zero {{ coq Vzero }}
+% | one          :: M  :: one {{ coq Vone }}
+% | true         :: M  :: true {{ coq Vtrue }}
+% | false        :: M  :: false {{ coq Vfalse }}
+% | mone         :: M  :: mone {{ coq Vmone }}
+% | intS ( ty )  :: M  :: intSize {{ com integer value defined by type }} {{ coq Int.repr (sizeof [[ty]]) }} 
+%
+% for typesetting figures:
+ | v2hat             :: M  :: v2hat {{ tex \hat{\ottnt{v} }_2 }}  {{ coq DUMMY }}
+
+extval, evl :: 'EV' ::= {{ com external values }} {{ phantom }} {{ coq eventval }}
+ | extint n     ::    :: extint   {{ com external integer value }} 
+ | extfloat f   ::    :: extfloat {{ com external floating point value }}
+
+vs :: 'VS' ::= {{ com value list }}  {{ coq list val }} {{ phantom }}
+ | nil          ::   :: nil  {{ coq nil }}
+ | v '::' vs    ::   :: cons {{ coq ([[v]]::[[vs]]) }}
+ | vs @ [ v ]   ::   :: snoc {{ coq (List.app [[vs]] ([[v]]::nil)) }}
+
+arg_list, args   :: 'ARGS' ::=    {{ com argument lists }} {{ coq list (ident*type) }} {{ phantom }}
+   | nil                          ::   :: nil   {{ coq nil }} 
+   | ( id , ty ) '::' args        ::   :: cons  {{ coq (([[id]],[[ty]])::[[args]]) }} {{ tex [[id]]^{[[ty]]}[[::]][[args]] }}
+
+evs :: 'EVS' ::= {{ com eventval list }}  {{ coq list eventval }} {{ phantom }}
+ | nil              ::   :: nil  {{ coq nil }}
+ | evl '::' evs     ::   :: cons {{ coq ([[evl]]::[[evs]]) }}
+
+metavar opt_tid ::= {{ com optional thread id }} {{ coq option thread_id }} {{ phantom }} 
+metavar ef_sig ::= {{ com external signature }} {{ coq signature }} {{ phantom }}
+
+grammar
+memory_chunk, c :: 'M' ::= {{ phantom }} 
+  |  Mint32 :: ::  int32
+
+mobject_kind :: '' ::= {{ phantom }} 
+  |  MObjStack  :: :: MObjStack 
+
+rmw_instr, rmwi :: 'rmw_' ::= {{ phantom }}
+  | ADD v      :: :: ADD
+  | CAS v v'   :: :: CAS
+  | SET v      :: :: SET
+
+mem_event, me  :: 'ME' ::= {{ phantom }} 
+  | write p  memory_chunk v  ::     :: write 
+  | read  p memory_chunk v   ::     :: read   
+  | alloc p n  mobject_kind  ::     :: alloc 
+  | free p mobject_kind      ::     :: free
+  | rmw p memory_chunk v rmwi
+                             ::     :: rmw
+  | fence                    ::     :: fence
+  | ( me )                   ::  M  :: paren {{ coq [[me]] }}
+
+event, ev :: 'E' ::= {{ phantom }} 
+  | call id evs     :: :: call
+  | return  typ evl :: :: return
+  | exit n          :: :: exit
+  | fail            :: :: fail
+  | ( ev )          :: M :: evparen {{ coq [[ev]] }}
+
+thread_event, te :: 'TE' ::= {{ com thread events }} {{ phantom }} 
+  | ext event          :: :: ext   {{ com externally observable event }}
+  | mem mem_event      :: :: mem   {{ com memory event }}
+  | tau                :: :: tau   {{ com thread-local event }} {{ tex \quad }}
+  | exit               :: :: exit  {{ com normal exit }}
+  | start p vs         :: :: start {{ com thread start (bootstrap) }}
+
+
+
+% typesetting:
+
+grammar
+  terminals :: 'terminals_' ::=
+    | __                  ::   :: underscore  {{ tex \_ }}
+    | -->                 ::   :: red        {{ tex \longrightarrow }}
+    |  ->                 ::   :: arrow      {{ tex \rightarrow }}
+    | |-                  ::   :: turnstile  {{ tex \vdash }}
+    | in                  ::   :: in         {{ tex \in }}
+    | <>                  ::   :: point      {{ tex \mathord{\hat{\mbox{\,} } } }}
+    | .                   ::   :: dot        {{ tex \cdot }} 
+    | '|'                 ::   :: envbar     {{ tex \,|_ }}
+    | {                   ::   :: leftbrace  {{ tex \texttt{\char'173} }}
+    | }                   ::   :: rightbrace  {{ tex \texttt{\char'175} }}
+    | '||'                ::   :: barbar    {{ tex \texttt{\char'174}\texttt{\char'174} }}
+
+% formulae used in rules:
+grammar
+  formula :: 'formula_' ::=          
+    | judgement           ::   :: judgement
+    | env ! id = Some p   ::   :: env1 {{ coq [[env]]![[id]] = Some [[p]] }}
+    | env ! id = None     ::   :: env2 {{ coq [[env]]![[id]] = None }}
+    | ty = ty'            ::   :: eqty {{ coq [[ty]] = [[ty']] }}
+    | is_true  v ty       :: :: isTrue {{ coq is_true [[v]] [[ty]] }}
+    | is_false  v ty      :: :: isFalse {{ coq is_false [[v]] [[ty]] }}
+%    | formula1 .. formulaj :: :: dots
+%    | formula1 = formula2
+
+
+embed
+  {{ coq
+
+(** Continuations **)
+
+Section CONT.
+
+
+}}
+
+
+metavar p ::=  {{ phantom }} {{ coq pointer }} {{ com pointer }}
+
+grammar
+opt_pty  :: 'OPT' ::=   {{ com optional pointer/type pair }} 
+                        {{ coq option ( pointer*type) }}   {{ phantom }}
+ |                      :: M :: None  {{ coq None }}
+ | ( p , ty ) =         :: M :: Some  {{ coq (Some ([[p]],[[ty]])) }} 
+                                      {{ tex [[p]]^{[[ty]]} }}
+
+opt_v  :: 'OPTV' ::=    {{ com optional value }} 
+                        {{ coq option val }} {{ phantom }}
+ | None                 :: M :: None  {{ coq None }}
+ | ( Some v )           :: M :: Some  {{ coq (Some [[v]]) }} 
+
+ps :: 'PS' ::=          {{ com pointer list }} 
+                        {{ coq list pointer }} {{ phantom }}
+ | nil                  :: M :: Nil  {{ coq nil }}
+ | p '::' ps            :: M :: Cons {{ coq ([[p]]::[[ps]]) }}
+
+env {{ tex \rho }}, envp {{ tex {\rho'} }} , envpp {{ tex {\rho''} }} :: 'ENV' ::= {{ com environment }} 
+                                                                                   {{ coq env }} {{ phantom }}
+ | empty_env            :: M :: Nil 
+                           {{ coq empty_env }} 
+                           {{ tex {\rho_{\mbox{\scriptsize\text{empty} } } } }}
+ | ( env + ( id , p ) ) :: M :: Update 
+%                          {{ coq ([[env]]![[id]]#[[p]]) }}   % {{PTree.set [[id]] [[p]] [[env]]) }} % the # isn't good syntax
+                           {{ coq (PTree.set [[id]] [[p]] [[env]]) }}
+                           {{ tex {[[env]]\oplus([[id]] \mapsto [[p]] ) } }}
+ | envhat :: M :: envhat {{ tex {\hat{\rho} } }} {{ coq DUMMY }}
+
+%opt_lhs_p  :: 'OPTE' ::= {{ com optional lhs expression }} 
+%                         {{ coq option (ident * type) }} {{ phantom }}
+% |                      :: M :: None  {{ coq  None }}
+% |  ( id : ty ) =       :: M :: Some  {{ coq  (Some ([[id]], [[ty]])) }}
+%                                      {{ tex [[id]]:^{[[ty]]} [[=]] }}
+
+metavar typ  ::=                   {{ phantom }} 
+metavar fundef, fd  ::=            {{ phantom }}
+metavar fn_body ::=                {{ phantom }}
+metavar fn ::=        {{ phantom }} {{ coq function }}
+metavar ge ::=                     {{ phantom }}
+metavar delta {{ tex \delta }} ::= {{ phantom }} {{ coq Z }}
+
+grammar
+cont, k {{ tex \kappa_{\mathrm{s} } }}             :: 'K' ::= {{ com statement continuation }}  {{ coq-universe Type }}
+  | stop                              ::  :: stop 
+  | [ __ ; s2 ] . k                   ::  :: seq     {{ com sequence }} %{{ order [[s2]] [[k]] }}
+     {{ tex [ [[__]]\, [[;]]\,[[s2]] ] [[.]] [[k]] }}
+  | [ while ( e ) do s ] . k          ::  :: while   {{ com while }} %{{ order [[e]] [[s]] [[k]] }}
+     {{ tex [ [[while]]\ [[(]] [[e]] [[)]]\ [[do]]\ [[s]] ] [[.]] [[k]] }}
+  | [ do s while ( e ) ] . k          ::  :: dowhile {{ com do while }} %{{ order [[e]] [[s]] [[k]] }}
+  | [ for ( ; e2 ; <> s3 ) s ] . k    ::  :: forIncr    {{ com for loop, pending increment }} %{{ order [[e2]] [[s3]] [[s]] [[k]] }}
+     % WAS Kfor
+     {{ tex [ [[for]] [[(]] \,[[;]] [[e2]] [[;]] \diamond [[s3]] [[)]]\ [[s]] ] [[.]] [[k]] }}
+  | [ for ( ; <> e2 ;  s3 ) s ] . k       ::  :: forCond {{ com for loop, pending condition evaluation }} %{{ order [[e2]] [[s3]] [[s]] [[k]] }} 
+     % WAS KforLoop
+     {{ tex [ [[for]] [[(]] \,[[;]] \diamond [[e2]] [[;]] [[s3]] [[)]]\ [[s]] ] [[.]] [[k]] }}
+  | [ opt_lhs fd ( __ ) | env ] . k ::  :: call    {{ com call awaiting args }}  %{{ order [[opt_lhs_p]] [[fd]] [[env]] [[k]] }}
+     {{ tex [ [[opt_lhs]]\ [[fd]] [[(]] [[__]] [[)]] [[|]] [[env]] ] [[.]] [[k]] }}
+  | [ switch k ] :: :: switch {{ com switch protecting break }} 
+  | [ free ps ; return opt_v ] . k    ::  :: free  %{{ order [[ps]] [[opt_v]] [[k]] }}
+     {{ tex [ [[free]]\ [[ps]] [[;]]\, [[return]]\ [[opt_v]] [[] ]] [[.]] [[k]] }}
+
+
+grammar
+
+
+
+expr_cont, ek  {{ tex \kappa_{\mathrm{e} } }} :: 'EK' ::= {{ com expression continuations }}  {{ coq-universe Type }}
+
+% expression-holed expression contexts 
+%
+ | [ op1  ty  __  ] . ek               ::   :: unop    {{ com unary operation }}
+   {{ order [[op1]] [[ty]] \; [[ek]] }} 
+   {{ tex [ [[op1]]^{[[ty]]} [[__]] ] [[.]] [[ek]] }}
+
+ | [  __ op2 ty1 ty2 ty e2  ] . ek     ::   :: binop1  {{ com binary operation }}  
+   {{ order [[op2]] [[ty1]] [[ty2]] [[ty]] [[e2]] [[ek]] }}
+   {{ tex [ [[__]] \; [[op2]]^{[[ty1]]*[[ty2]] [[->]] [[ty]]} \; [[e2]] ] [[.]] [[ek]] }}
+
+ | [  v op2 ty1 ty2 ty __  ] . ek      ::   :: binop2  {{ com binary operation }}  
+   {{ order [[op2]] [[ty1]] [[ty2]] [[ty]] [[v]] [[ek]] }}
+   {{ tex [ [[v]] \; [[op2]]^{[[ty1]]*[[ty2]] [[->]] [[ty]]} \; [[__]] ] [[.]] [[ek]] }}
+
+ | [  ( ty ) (__ : ty' ) ] . ek        ::   :: cast 
+   {{ order [[ty']] [[ty]] [[ek]] }}
+   {{ tex [ [[(]][[ty]][[)]][[__]]^{[[ty']]} ] [[.]] [[ek]] }}
+
+ | [ ( __ : ty ) ? e2 : e3 ] . ek      ::   :: condition
+   {{ order [[e2]] [[e3]] [[ty]] [[ek]] }}
+   {{ tex [ [[__]]^{[[ty]]} [[?]] [[e2]] [[:]] [[e3]] ] [[.]] [[ek]] }}
+
+ | [ __ . delta ] . ek                 ::   :: field   {{ com access to member of struct }} 
+   {{ tex [ [[__]] [[.]] [[delta]] ] [[.]] [[ek]] }}
+
+% auxiliary expression-holed expression contexts introduced for the semantics
+%
+ | [ * ( __ : ty ) ] . ek   ::    :: lval         {{ com load }} 
+   {{ tex [ [[*]][[__]]^{[[ty]]} ] [[.]] [[ek]] }}
+
+% expression-holed statement contexts 
+%
+ | [  ( __ : ty ) = e2 ] . k                :: :: assign1 {{ com assignment }}   
+   {{ order [[e2]] [[ty]]  [[k]] }}
+   {{ tex [ [[__]]^{[[ty]]} [[=]] [[e2]] ] [[.]] [[k]] }}
+
+ | [ ( v : ty ) = __ ] . k                  :: :: assign2 {{ com assignment }}  
+   {{ order [[v]] [[ty]]  [[k]] }}
+   {{ tex [ [[v]]^{[[ty]]} [[=]] [[__]] ] [[.]] [[k]] }}
+
+ | [ opt_lhs ( __ : ty ) ( es ) ] . k     :: :: call    {{ com call function }} 
+   {{ tex [ [[opt_lhs]]\ [[__]]^{[[ty]]}\, [[(]] [[es]] [[)]] ] [[.]] [[k]] }}
+
+ | [ opt_lhs ( v : ty ) ( vs , es ) ] . k :: :: args    {{ com call args }}
+   {{ order [[opt_lhs]] [[v]] [[ty]] [[vs]] [[es]] [[k]] }}
+   {{ tex [ [[opt_lhs]]\ [[v]]^{[[ty]]} ( [[vs]] ,\, [[es]] ) ] [[.]] [[k]] }}
+
+ | [ opt_lhs astmt ( vs , es ) ] . k         :: :: atargs    {{ com atomic args }}
+   {{ order [[opt_lhs]] [[astmt]] [[vs]] [[es]] [[k]] }}
+   {{ tex [ [[opt_lhs]]\ [[astmt]] ( [[vs]] ,\, [[es]] ) ] [[.]] [[k]] }}
+
+ | [ if ( __ : ty ) then s1 else s2 ] . k   :: :: cond    {{ com if }}
+   {{ order [[ty]] [[s1]] [[s2]] [[k]] }}
+   {{ tex [ [[if]]\ [[(]] [[__]]^{[[ty]]} [[)]] \ [[then]]\ [[s1]]\ [[else]]\ [[s2]] ] [[.]] [[k]] }}
+  
+  | [ while ( __ e ) do s ] . k             :: :: while   {{ com while }}
+    {{ order [[e]] [[s]] [[k]] }}
+    {{ tex [ [[while]] \ ( [[__]]_{[[e]]} ) \ [[do]]\ [[s]] ]  [[.]] [[k]] }}
+ 
+  | [ do s while ( __ e ) ] . k             :: :: dowhile {{ com dowhile }}
+    {{ order [[s]] [[e]] [[k]] }}
+    {{ tex [ [[do]]\ [[s]] \ [[while]] \ ( [[__]]_{[[e]]} )  ]  [[.]] [[k]] }}
+
+ | [ for ( ; __ e2 ; s3 ) s ] . k           :: :: forTest {{ com for loop, pending test }} 
+   {{ order [[e2]] [[s3]] [[s]] [[k]] }}
+   {{ tex [ [[for]]\ ( ; \, [[__]]_{[[e2]]} ; \, [[s3]] )\ [[s]] ]  [[.]] [[k]] }}
+
+ | [ return __ ] . k              :: :: return  {{ com funtion return }}
+   {{ tex [ [[return]]\ [[__]] ] [[.]] [[k]] }}
+
+ | [ switch ( __ ) ls ] . k                 :: :: switch  {{ com switch }}
+   {{ order [[ls]] [[k]] }}
+   {{ tex [ [[switch]]\, [[(]] [[__]] [[)]]\, [[ls]] ] [[.]] [[k]] }}
+
+ | [ thread_create ( __ , e2 ) ] . k        :: :: thread1 {{ com thread creation }}
+   {{ order [[e2]] [[k]] }}
+   {{ tex [ [[thread_create]] [[(]] [[__]] [[,]]\, [[e2]] [[)]] ] [[.]] [[k]] }}
+ | [ thread_create ( p , __ ) ] . k         :: :: thread2 {{ com thread creation }}
+   {{ order [[p]] [[k]] }}
+   {{ tex [ [[thread_create]] [[(]] [[p]] [[,]]\, [[__]] [[)]] ] [[.]] [[k]] }}
+% for typesetting figures
+ | ekhat                                    :: M :: ekhat  
+   {{ tex { {\hat{\kappa} }_{\mathrm{e} } } }} {{ coq DUMMY }}
+
+
+state, st  {{ tex \sigma }} :: 'SK' ::= {{ com states }}  {{ coq-universe Type }}
+ | lval ( e ) . ek  '|' env                :: ::  lval   {{ order [[e]] [[env]] [[ek]] }}
+ | e . ek           '|' env                :: ::  expr   {{ order [[e]] [[env]] [[ek]] }}       
+ | v . ek           '|' env                :: ::  val    {{ order [[v]] [[env]] [[ek]] }}
+ | s . k            '|' env                :: ::  stmt   {{ order [[s]] [[env]] [[k]] }}       
+ | vs . k                                  :: ::  call         
+ | bind  ( fn ,  vs , args ) . k '|' env   :: ::  bind   {{ order [[fn]] [[vs]] [[args]] [[env]] [[k]] }}
+ | alloc  ( vs , args ) . k '|'  env       :: ::  alloc  {{ order [[vs]] [[args]] [[env]] [[k]] }}   
+ | opt_lhs ext  ( __ : fd )  . k '|' env :: ::  External  {{ order [[fd]] [[opt_lhs]] [[env]] [[k]] }} 
+   {{ tex  [[opt_lhs]]\ [[ext]][[(]][[__]]^{[[typ]]} [[)]] [[.]] [[k]] [[|]] [[env]] }}
+ | opt_lhs v . k '|' env                 :: ::  optstorevar {{ order [[opt_lhs]] [[v]] [[env]] [[k]] }}
+ 
+
+
+
+
+embed 
+ {{ coq
+
+(** Pop continuation until a call or stop *)
+
+ 
+Fixpoint call_cont (k: cont) : cont :=
+  match k with
+  | Kseq s k => call_cont k
+  | Kwhile e s k => call_cont k 
+  | Kdowhile s e k => call_cont k 
+(*  | Kfor e s1 s2 k => call_cont k *)
+  | KforIncr e s1 s2 k => call_cont k
+  | KforCond e s1 s2 k => call_cont k
+  | Kswitch k => call_cont k
+  | Kfree p vo k => call_cont k
+  | _ => k
+  end.
+
+Definition is_call_cont (k: cont) : bool :=
+  match k with
+  | Kstop => true
+  | Kcall _ _ _ _ => true
+  | _ => false
+  end.
+
+Definition get_fundef (k: cont) : option fundef :=
+  match k with
+   | Kcall op fd e k => (Some fd)
+   | _ => None
+  end.
+
+End CONT.
+
+Section STEP.
+
+Variable ge: genv.
+
+
+(** Find the statement corresponding to a label *)
+
+Fixpoint find_label (lbl: label) (s: statement) (k: cont) 
+                    {struct s}: option (statement * cont) :=
+  match s with
+  | Ssequence s1 s2 =>
+      match find_label lbl s1 (Kseq s2 k) with
+      | Some sk => Some sk
+      | None => find_label lbl s2 k
+      end
+  | Sifthenelse a s1 s2 =>
+      match find_label lbl s1 k with
+      | Some sk => Some sk
+      | None => find_label lbl s2 k
+      end
+  | Swhile a s1 =>
+      find_label lbl s1 (Kwhile a s1 k)
+  | Sdowhile a s1 =>
+      find_label lbl s1 (Kdowhile s1 a k)  (* PS: ? *)
+  | Sfor s1 e2 s3 s =>
+      match find_label lbl s1 (KforCond e2 s3 s k) with (* PS: ?? *)
+      | Some sk => Some sk
+      | None =>
+          match find_label lbl s (KforIncr e2 s3 s k) with (* PS: ?? *)
+          | Some sk => Some sk
+          | None => find_label lbl s3 (KforCond e2 s3 s k) (* PS: ?? *)
+          end
+      end
+  | Sswitch e sl =>
+      find_label_ls lbl sl (Kswitch k)
+  | Slabel lbl' s' =>
+      if ident_eq lbl lbl' then Some(s', k) else find_label lbl s' k
+  | _ => None
+  end
+
+with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) 
+                    {struct sl}: option (statement * cont) :=
+  match sl with
+  | LSdefault s => find_label lbl s k
+  | LScase _ s sl' =>
+      match find_label lbl s (Kseq (seq_of_labeled_statement sl') k) with
+      | Some sk => Some sk
+      | None => find_label_ls lbl sl' k
+      end
+  end.
+
+Definition type_to_chunk (ty : type) :=
+  match (access_mode ty) with
+  | By_value chunk => (Some chunk)
+  | _ => None
+ end.
+
+Definition cl_init (p : pointer) (vs : list val) : option state :=
+  match Genv.find_funct_ptr ge p with
+   | Some (Internal f)  => 
+       if beq_nat (length vs) (length f.(fn_params))
+         then Some (SKcall (Val.conv_list vs (typlist_of_typelist (type_of_params f.(fn_params))))
+                           (Kcall None (Internal f) empty_env Kstop))
+         else None
+   | _ => None
+  end.
+
+
+}}
+
+
+
+defns 
+Jop :: '' ::=
+
+defn
+ st -- te --> st' :: ::cl_step::'Step' {{ com Labelled Transitions (parameterised over ge) }} {{ tex [[st]]\ \xrightarrow{[[te]]}\ [[st']] }} by
+
+
+% {{ com \noindent Integer Constant }} 
+
+----------------------------------------------------------- :: ConstInt
+  (n:ty).ek |env   --tau-->    n .ek |env
+
+% {{ com Float Constant }} 
+
+----------------------------------------------------------- :: ConstFloat
+  (f:ty).ek |env   --tau-->    f .ek |env
+
+
+% {{ com Var }}
+
+------------------------------------------------------------- :: VarExprByValue
+  (id:ty) . ek |env   --tau-->    lval( (id:ty)) . [* (__:ty)] . ek |env
+
+
+  {{ [[env]]![[id]] = Some [[p]] }}
+------------------------------------------------------------- :: VarLocal
+  lval( (id:ty)) . ek |env   --tau-->    p . ek |env
+
+  {{ [[env]]![[id]] = None }}
+  {{ Genv.find_symbol ge [[id]] = Some [[p]] }}
+------------------------------------------------------------- :: VarGlobal
+  lval( (id:ty)) . ek |env   --tau-->    p . ek |env
+
+% {{ com Load }}
+
+  {{ access_mode [[ty']] = By_value [[c]] }}
+  {{ [[typ]] = type_of_chunk [[c]] }}
+  {{ Val.has_type [[v]] [[typ]] }}
+------------------------------------------------------------- :: LoadByValue
+  p . [* (__:ty')] . ek |env   --mem(read p c v)--> v . ek |env
+
+
+  {{ access_mode [[ty']] = By_reference \/ access_mode [[ty']] = By_nothing }}
+------------------------------------------------------------- :: LoadNotByValue
+  p . [* (__:ty')] . ek |env   --tau--> p . ek |env
+
+
+% {{ com AddrOf }}
+
+------------------------------------------------------------- :: Addr
+  (&e:ty) . ek |env --tau--> lval(e).ek |env
+
+
+% {{ com Econdition }}
+
+
+------------------------------------------------------------- :: Econdition
+  (e1?e2:e3 : ty)  . ek |env --tau--> e1 . [(__:typeof e1)?e2:e3] .ek |env
+
+  is_true v ty 
+------------------------------------------------------------- :: Econditiontrue
+  v . [(__:ty)?e2:e3] .ek |env --tau--> e2.ek  |env
+
+  is_false v ty 
+------------------------------------------------------------- :: Econditionfalse
+  v . [(__:ty)?e2:e3] .ek |env --tau--> e3.ek  |env
+
+
+% {{ com Dereference }} 
+
+------------------------------------------------------------- :: Deref
+  (*e:ty) . ek |env --tau--> e.[*(__:ty)].ek |env
+
+
+------------------------------------------------------------- :: DerefLval
+  lval( (*e:ty) ) . ek |env --tau--> e.ek |env
+
+
+% {{ com Field }} 
+
+------------------------------------------------------------- :: Field
+  (e.id:ty) . ek |env --tau--> lval((e.id:ty)). [*(__:ty)].ek |env
+
+
+  typeof e = struct(id',phi)
+  {{ field_offset [[id]] [[phi]] = OK [[delta]] }}
+------------------------------------------------------------- :: Fstruct1
+  lval( (e.id:ty) ). ek |env --tau--> lval(e). [ __.delta].ek |env
+
+
+  {{ [[p']] = Ptr.add [[p]]  (Int.repr [[delta]]) }}
+------------------------------------------------------------- :: Fstruct2
+  p . [ __.delta ] . ek  |env --tau-->  p'.ek  |env
+
+% {{ com Field Union }}
+
+  typeof e = union(id',phi)
+------------------------------------------------------------- :: Funion
+  lval( (e.id:ty) ). ek |env --tau--> lval(e). ek |env
+
+
+% {{ com SizeOf }}
+
+  {{ [[v]]=Vint (Int.repr (sizeof [[ty']])) }}
+------------------------------------------------------------- :: SizeOf
+  (sizeof(ty'):ty).ek |env --tau--> v.ek |env
+
+
+% {{ com Unop }}
+ 
+------------------------------------------------------------- :: Unop1
+  (op1 e : ty).ek |env   --tau--> e . [op1 typeof e __ ] .ek |env
+
+  {{ sem_unary_operation [[op1]] [[v]] [[ty]] = Some [[v']] }}
+------------------------------------------------------------- :: Unop
+  v.[op1 ty __ ] .ek |env  --tau-->   v'.ek |env
+
+
+
+% {{ com Binop }}
+
+------------------------------------------------------------- :: Binop1
+  ((e1 op2 e2) : ty).ek |env   --tau--> e1.[__ op2 typeof e1 typeof e2 ty e2 ] .ek |env
+
+% we could replace all these uses of typeof by pattern matching, eg
+%
+%------------------------------------------------------------- :: Binop1
+%  (((a1:ty1) op2 (a2:ty2)) : ty).ek |env   --tau--> (a1:ty1).[__ op2 ty1 ty2 ty (a2:ty2) ] .ek |env
+
+   {{ valid_arg [[op2]] [[ty1]] [[ty2]] [[v]] = true }}
+------------------------------------------------------------- :: Binop2
+  v. [__ op2 ty1 ty2 ty e2 ] .ek |env  --tau-->  e2.[v op2 ty1 ty2 ty __].ek |env
+
+  {{ sem_binary_operation [[op2]] [[v1]] [[ty1]] [[v2]] [[ty2]] = Some [[v]] }}
+------------------------------------------------------------- :: Binop
+  v2.[v1 op2 ty1 ty2 ty __].ek |env  --tau-->   v.ek |env
+
+
+
+% {{ com Cast }} 
+
+------------------------------------------------------------- :: Cast1
+  ((ty)e : ty').ek |env   --tau--> e . [ (ty) (__ : typeof e)] .ek |env
+
+  {{ cast [[v]] [[ty']] [[ty]] [[v']] }}
+------------------------------------------------------------- :: Cast2
+  v. [ (ty) (__ : ty')] .ek |env  --tau-->   v'.ek |env
+
+
+% {{ com Short circuit and (\&\&) }}
+
+  {{ [[n0]] = Int.repr 0 }}
+  {{ [[n1]] = Int.repr 1 }}
+------------------------------------------------------------- :: Andbool
+  (e1 && e2 : ty).ek |env   --tau--> (e1? ((e2?((n1:ty)):((n0:ty)):ty))  : (n0:ty)  :ty).ek |env
+
+
+% {{ com Short circuit or  }}
+
+  {{ [[n0]] = Int.repr 0 }}
+  {{ [[n1]] = Int.repr 1 }}
+------------------------------------------------------------- :: Orbool
+  (e1 || e2 : ty).ek |env   --tau--> (e1? ((n1:ty)) : ((e2?((n1:ty)):((n0:ty)):ty))  :ty).ek |env
+
+
+
+% {{ com Thread }} 
+% the opt_tid is because thread creation might fail
+
+------------------------------------------------------------- :: Thread
+  thread_create(e1,e2).k  |env --tau--> e1 . [thread_create(__,e2)].k  |env
+
+------------------------------------------------------------- :: ThreadFn
+  p . [thread_create(__,e2)].k  |env --tau--> e2.[thread_create(p,__)].k |env
+
+------------------------------------------------------------- :: ThreadEvt
+  v.[thread_create(p,__)].k |env --start p v::nil--> skip.k  |env
+
+
+% {{ com Assignment }}
+
+------------------------------------------------------------- :: Assign1
+  e1=e2 . k |env   --tau-->    lval(e1) . [(__:typeof e1)= e2] . k |env
+
+
+------------------------------------------------------------- :: Assign2
+  v1.[(__:ty)= e2].k |env   --tau-->    e2 . [(v1:ty)= __] . k |env
+
+
+  {{ type_to_chunk [[ty1]] = Some [[c]] }}
+  {{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: Assign
+  v1.[(p1:ty1)= __].k |env   --mem(write p1 c v2)--> skip.k |env
+
+
+% {{ com Statement sequence }}
+
+------------------------------------------------------------- :: Seq
+  s1;s2 . k |env --tau--> s1.[__;s2].k |env
+
+% {{ com Call }}
+
+%
+%------------------------------------------------------------- :: CallNone
+%  e'(es) .k |env --tau--> e' . [(__:typeof e')(es)].k  |env
+
+ 
+------------------------------------------------------------- :: Call
+  opt_lhs e'(es) .k |env  --tau--> e'. [ opt_lhs (__:typeof e')(es)].k |env
+
+  {{ Genv.find_funct ge [[v]] = Some [[fd]] }}
+  {{ type_of_fundef [[fd]] = [[ty]] }}
+------------------------------------------------------------- :: Callargsnone
+  v.[opt_lhs (__:ty)(nil)].k |env  --tau-->nil.[opt_lhs fd(__)|env].k 
+
+
+------------------------------------------------------------- :: CallArgs1
+  v.[opt_lhs (__:ty)(e::es)].k |env  --tau--> e.[opt_lhs (v:ty) ( nil , es )].k |env
+
+------------------------------------------------------------- :: CallArgs2
+  v1.[opt_lhs (v:ty) (vs , e::es)].k |env --tau--> e.[opt_lhs (v:ty)(vs@[v1] , es)].k |env
+
+  {{ Genv.find_funct ge [[v]] = Some [[fd]] }}
+  {{ type_of_fundef [[fd]] = [[ty]] }}
+------------------------------------------------------------- :: CallFinish
+  v'.[opt_lhs (v:ty) (vs , nil)].k |env --tau--> vs@[v'].[opt_lhs fd(__)|env].k 
+
+
+% {{ com Atomic statement }}
+
+
+------------------------------------------------------------- :: Atomic
+  opt_lhs astmt (e::es) .k |env --tau--> e . [opt_lhs astmt ( nil , es )].k  |env
+
+
+------------------------------------------------------------- :: AtomicArgs
+  v.[opt_lhs astmt (vs , e::es)].k |env --tau--> e.[opt_lhs astmt (vs@[v] , es)].k |env
+
+
+  {{ sem_atomic_statement [[astmt]] ( [[vs]] ++ [[v]] :: nil ) = Some ([[p]], [[rmwi]]) }}
+  {{ Val.has_type v' (type_of_chunk Mint32) }}
+------------------------------------------------------------- :: AtomicFinishNone
+  v.[  astmt ( vs , nil ) ].k |env --mem(rmw p Mint32 v' rmwi)--> skip . k |env
+
+  {{ sem_atomic_statement [[astmt]] ( [[vs]] ++ [[v]] :: nil ) = Some ([[p]], [[rmwi]]) }}
+  {{ Val.has_type v' (type_of_chunk Mint32) }}
+------------------------------------------------------------- :: AtomicFinishSome
+  v.[ ( id : ty ) = astmt (vs , nil) ].k |env --mem(rmw p Mint32 v' rmwi)--> ( id : ty ) = v'.k |env
+
+% {{ com Fence }}
+
+
+------------------------------------------------------------- :: Fence
+  mfence.k |env --mem fence--> skip.k  |env
+
+% {{ com Continue }}
+
+
+------------------------------------------------------------- :: Continue
+  continue . [__;s].k |env --tau--> continue.k |env
+
+
+% {{ com Break }}
+
+------------------------------------------------------------- :: Break
+  break . [__;s].k |env --tau--> break.k |env
+
+
+
+% {{ com If-then-else }}
+
+------------------------------------------------------------- :: IfThenElse
+ if (e) then s1 else s2.k |env --tau--> e.[if (__:typeof e) then s1 else s2].k |env
+
+
+  is_true v ty
+------------------------------------------------------------- :: IfThenElseTrue
+  v . [if (__:ty) then s1 else s2].k |env --tau--> s1.k |env
+
+  is_false v ty
+------------------------------------------------------------- :: IfThenElseFalse
+  v . [if (__:ty) then s1 else s2].k |env --tau--> s2.k |env
+
+
+% {{ com While }} 
+------------------------------------------------------------- :: While
+while (e) do s . k |env --tau--> e. [ while ( __ e ) do s ].k  |env
+
+ is_true v (typeof e)
+ ------------------------------------------------------------- :: WhileTrue
+ v.[ while ( __ e ) do s ].k |env  --tau-->  s.[ while ( e ) do s ].k  |env
+ 
+ is_false v (typeof e)
+ ------------------------------------------------------------- :: WhileFalse
+ v.[ while ( __ e ) do s ].k |env  --tau-->  skip.k  |env
+
+------------------------------------------------------------- :: ContinueWhile
+continue.[ while ( e ) do s].k  |env --tau--> while ( e ) do s.k  |env
+
+------------------------------------------------------------- :: BreakWhile
+break.[ while ( e ) do s ].k  |env  --tau-->  skip.k  |env
+
+% {{ com DoWhile }}
+
+------------------------------------------------------------- :: DoWhile
+do s while (e).k  |env --tau-->  s . [ do s while ( e ) ].k |env
+
+ is_true v (typeof e)
+ ------------------------------------------------------------- :: DoWhileTrue
+ v.[ do s while ( __ e ) ].k |env  --tau-->  do s while ( e ) .k  |env
+ 
+ is_false v (typeof e)
+ ------------------------------------------------------------- :: DoWhileFalse
+ v.[ do s while ( __ e ) ].k |env  --tau-->  skip.k  |env
+
+------------------------------------------------------------- :: DoContinueWhile
+continue.[ do s while ( e ) ].k  |env --tau--> e. [ do s while ( __ e ) ].k  |env
+
+------------------------------------------------------------- :: DoBreakWhile
+break.[ do s while ( e ) ].k  |env  --tau-->  skip.k  |env
+
+
+% {{ com For }}
+% Naming scheme:
+% \begin{itemize}
+% \item KforIncr (was Kfor) just about to do the increment statement s3
+% \item KforCond (was KforLoop) just about to evaluate the condition e2
+% \item EKforTest (was EKfor) just about to test the value v of the condition 
+% \end{itemize}
+% In C you syntactically can't have break or continue in s1 or s3, as
+% they are expressions.  Here: in s1 break and continue work as if in
+% the loop; in s3 they get stuck; and in s they work as they should.
+
+%
+%             break                                 continue
+% ----------|--------------------------------------|--------------------------
+% for (s1;    breaks out of an *enclosing* loop     continues an *enclosing*
+%      e2;    
+%      s3)    gets stuck (break isn't allowed in C) continues this loop at s3
+%  s          breaks out of this loop               continues this loop at s3
+% 
+% 
+% 
+% naming convention: ForBreak doesn't match BreakWhile
+
+
+------------------------------------------------------------- :: ForInit
+for (s1;e2;s3) s . k |env --tau--> s1.[ for (;<>e2;s3) s].k |env
+
+------------------------------------------------------------- :: ForCond
+  skip.[for(;<>e2;s3) s].k |env --tau--> e2.[for (;__e2;s3) s].k |env
+
+
+
+is_true v (typeof e2)
+------------------------------------------------------------- :: ForTrue
+v.[for (;__e2;s3) s].k |env  --tau-->  s.[for (;e2;<>s3) s].k  |env
+
+is_false v (typeof e2)
+------------------------------------------------------------- :: ForFalse
+v.[for (;__e2;s3) s].k |env  --tau-->  skip.k  |env
+
+
+------------------------------------------------------------- :: ForIncr
+  skip.[for(;e2;<>s3) s].k |env --tau--> s3.[for (;<>e2;s3) s].k |env
+
+
+------------------------------------------------------------- :: ForBreak
+break.[for (;e2;<>s3) s].k  |env  --tau-->  skip.k  |env
+
+
+------------------------------------------------------------- :: ForContinue
+continue.[for (;e2;<>s3) s].k  |env --tau--> s3 . [for (;<>e2;s3) s].k |env
+
+
+
+% {{ com Return }} 
+
+ {{ call_cont [[k]] = (Kcall None (Internal [[fn]]) [[envpp]] [[k']]) }}
+ {{ [[fn]].(fn_return) = Tvoid }}
+ {{ [[ps]] = sorted_pointers_of_env [[envp]] }}
+------------------------------------------------------------- :: ReturnNone
+ return . k |envp --tau--> skip . [free ps; return None]. k |envp   
+
+------------------------------------------------------------- :: Return1
+skip . [free p::ps; return opt_v].k |env --mem(free p MObjStack)--> skip.[free ps;return opt_v].k |env  
+
+ {{ call_cont [[k]] = [[k']] }}
+ {{ get_fundef [[k']] = Some (Internal [[fn]]) }}
+ {{ [[fn]].(fn_return) <> Tvoid }}
+------------------------------------------------------------- :: ReturnSome
+ return e. k |envp --tau-->  e.[return __].k  |envp
+
+ {{ [[ps]] = sorted_pointers_of_env [[env]] }}
+------------------------------------------------------------- :: ReturnSome1
+ v. [return __].k  |env --tau--> skip.[free ps; return (Some v)].k |env
+
+
+% {{ com Switch }}
+
+------------------------------------------------------------- :: Switch
+  switch (e) ls . k  |env  --tau--> e . [switch ( __ ) ls]. k |env
+
+  {{ [[s]] = seq_of_labeled_statement (select_switch [[n]] [[ls]]) }}
+------------------------------------------------------------- :: SelectSwitch
+  n . [switch ( __ ) ls]. k |env   --tau-->  s.[ switch k ]  |env
+
+------------------------------------------------------------- :: BreakSwitch
+  break . [ switch k ] |env --tau--> skip.k | env
+
+
+
+------------------------------------------------------------- :: ContinueSwitch
+  continue . [ switch k ] |env --tau--> continue.k | env
+
+% {{ com Label }} 
+------------------------------------------------------------- :: Label
+  l:s . k |env --tau--> s.k  |env
+
+
+% {{ com Goto }}
+
+  {{ call_cont [[k]] = [[k']] }} 
+  {{ get_fundef [[k']] = (Some (Internal [[fn]])) }}
+  {{ find_label [[l]] [[fn]].(fn_body) [[k']] = Some ([[s']], [[k'']]) }}
+------------------------------------------------------------- :: Goto
+  goto l . k  |env --tau--> s'.k''  |env
+
+% {{ com Internal Call/Return }}
+
+  {{ [[args]] = [[fn]].(fn_params) ++ [[fn]].(fn_vars) }}
+  {{ [[fd]] = Internal [[fn]] }}
+------------------------------------------------------------- :: FunctionInternal
+vs.[opt_lhs fd (__)|env].k --tau-->  alloc(vs, args).[opt_lhs fd (__)|env].k |empty_env
+
+ {{ [[n]] = Int.repr(sizeof [[ty]]) }}
+------------------------------------------------------------- :: AllocLocal
+  alloc(vs, (id,ty)::args). k |env --mem (alloc p n MObjStack)--> alloc(vs,args).k | (env+(id,p))
+
+
+{{ [[args]] = [[fn]].(fn_params) }}
+{{ [[fd]] = (Internal [[fn]]) }}
+------------------------------------------------------------- :: BindArgsStart
+  alloc(vs, nil).[opt_lhs fd (__)|envp].k |envpp --tau--> bind(fn,vs,args).[opt_lhs  fd (__)|envp].k |envpp
+
+  {{  [[env]]![[id]] = Some [[p]] }}
+  {{ type_to_chunk [[ty]] = (Some [[c]]) }}
+  {{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: BindArgs
+  bind(fn,v1::vs,(id,ty)::args).k |env --mem (write p c v2)--> bind(fn,vs,args).k |env
+
+{{ [[s]]=[[fn]].(fn_body) }}
+------------------------------------------------------------- :: TransferFun
+  bind(fn,nil,nil).k|env --tau--> s.k |env
+
+
+% {{ com External Call/Return }}
+
+ {{ true (*  event_match (external_function id targs ty) vs t vres -> *) }}
+ {{ [[fd]] = External [[id]] [[tys]] [[ty]] }}
+ {{ [[vs]] = map val_of_eval [[evs]] }}
+------------------------------------------------------------- :: ExternalCall
+vs . [opt_lhs fd (__)|env].k --ext(call id evs)--> opt_lhs ext(__:fd) .k |env 
+
+
+{{ Val.has_type [[v]] [[typ]] }}
+{{ [[fd]] = External [[id]] [[tys]] [[ty]] }}
+{{ [[typ]] = match (opttyp_of_type [[ty]]) with | Some x => x | None => Ast.Tint end }}
+{{ [[v]] = val_of_eval [[evl]] }}
+------------------------------------------------------------- :: ExternalReturn
+opt_lhs ext(__:fd) .k |env --ext(return typ evl)--> opt_lhs v .k |env
+
+
+
+{{ [[env]]![[id]] = Some [[p]] }}
+{{ type_to_chunk [[ty]] = Some [[c]] }}
+{{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: ExternalStoreSomeLocal
+(id:ty)=v1 . k |env --mem(write p c v2)--> skip.k |env
+
+
+{{ [[env]]![[id]] = None }}
+{{ Genv.find_symbol ge [[id]] = Some [[p]] }}
+{{ type_to_chunk [[ty]] = Some [[c]] }}
+  {{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: ExternalStoreSomeGlobal
+(id:ty)=v1 . k |env --mem(write p c v2)--> skip.k |env
+
+
+------------------------------------------------------------- :: ExternalStoreNone
+v . k |env --tau--> skip.k |env
+
+% {{ com Continuation Management }}
+
+
+------------------------------------------------------------- :: Skip
+   skip.[__;s2].k |env  --tau--> s2.k  |env
+
+
+------------------------------------------------------------- :: WhileLoop
+  skip.[while (e ) do s].k |env  --tau--> while (e) do s.k |env
+
+------------------------------------------------------------- :: DoWhileLoop
+  skip.[do s while (e)].k |env  --tau--> e.[do s while (__e)].k |env
+
+
+-------------------------------------------------------------:: SkipSwitch
+  skip.[ switch k] |env --tau--> skip.k |env
+
+
+
+  {{ call_cont [[k]] = [[  [ fd(__) |envp] . k' ]] }}
+------------------------------------------------------------- :: ReturnNoneFinish
+  skip.[free nil; return opt_v].k |envpp --tau--> skip.k' |envp
+
+  {{ type_to_chunk [[ty]] = (Some [[c]]) }}
+  {{ [[envp]]![[id]] = Some [[p]] }}
+  {{ call_cont [[k]] = [[ [(id:ty)= fd(__) |envp] .k' ]] }} 
+  {{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: ReturnSomeFinishLocal
+  skip.[free nil; return (Some v1)].k |envpp --mem(write p c v2)--> skip.k' |envp
+
+  {{ type_to_chunk [[ty]] = (Some [[c]]) }}
+  {{ [[envp]]![[id]] = None }}
+  {{ Genv.find_symbol ge [[id]] = Some [[p]] }}
+  {{ call_cont [[k]] = [[ [(id:ty)= fd(__) |envp] .k' ]] }} 
+  {{ cast_value_to_chunk [[c]] [[v1]] = [[v2]] }}
+------------------------------------------------------------- :: ReturnSomeFinishGlobal
+  skip.[free nil; return (Some v1)].k |envpp --mem(write p c v2)--> skip.k' |envp
+
+
+------------------------------------------------------------- :: Stop
+   skip.stop |env  --exit--> skip.stop  |env
+
+
+%  {{ coq
+% End STEP.  
+% 
+% }}

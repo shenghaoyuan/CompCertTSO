@@ -1,0 +1,39 @@
+#/bin/sh
+
+# This script will take each test*.c file and compare its Clight semantics 
+# output with the output of the program compiled with gcc
+#
+# Log is stored in test.log
+
+
+rm -f test.log
+touch test.log
+
+ls -1 test*.c | \
+while read IN; do
+    printf "%-40s." "Running test $IN"
+    echo ----- >> test.log
+    echo gcc -o executable $IN extfns.c >> test.log
+    if gcc -o executable $IN extfns.c >> test.log 2>&1 ; then
+      echo -n .
+    echo GCC output: >> test.log
+    ./executable | tee gcc.out >> test.log
+    echo -n .
+    echo Interpreter output: >> test.log
+    ../clighti -plain -external-only $IN | tee cli.out >> test.log
+    echo -n .
+    echo Diff: >> test.log
+    if diff gcc.out cli.out >> test.log ; then
+      echo "  Passed"
+      echo "=== Test Passed" >> test.log
+    else
+      echo "  Fail"
+      echo "!!!!!!!!!!!!!! Test Fail" >> test.log
+    fi
+    else
+      echo Compilation failed
+    fi
+done
+
+rm -f executable cli.out gcc.out
+

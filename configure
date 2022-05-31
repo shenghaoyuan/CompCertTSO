@@ -1,0 +1,221 @@
+#!/bin/sh
+
+#######################################################################
+#                                                                     #
+#              The Compcert verified compiler                         #
+#                                                                     #
+#          Xavier Leroy, INRIA Paris-Rocquencourt                     #
+#                                                                     #
+#  Copyright Institut National de Recherche en Informatique et en     #
+#  Automatique.  All rights reserved.  This file is distributed       #
+#  under the terms of the INRIA Non-Commercial License Agreement.     #
+#                                                                     #
+#######################################################################
+
+prefix=/usr/local
+bindir='$(PREFIX)/bin'
+libdir='$(PREFIX)/lib/compcert'
+target=''
+
+prompt() {
+    echo "$1 [$x] ? " | tr -d '\n'
+    read y
+    case "$y" in
+        "") ;;
+      none) x="";;
+         *) x="$y";;
+    esac
+}
+
+usage='Usage: ./configure [options]
+
+Supported targets:
+  x86-linux        (Intel x86, Linux)
+  x86-macosx       (Intel x86, macosx)
+  manual           (edit configuration file by hand)
+
+Options:
+  -prefix <dir>    Install in <dir>/bin and <dir>/lib/compcert
+  -bindir <dir>    Install binaries in <dir>
+  -libdir <dir>    Install libraries in <dir>
+'
+
+# Parse command-line arguments
+
+while : ; do
+  case "$1" in
+    "") break;;
+    -prefix|--prefix)
+        prefix=$2; shift;;
+    -bindir|--bindir)
+        bindir=$2; shift;;
+    -libdir|--libdir)
+        libdir=$2; shift;;
+    *)
+        if test -n "$target"; then echo "$usage" 1>&2; exit 2; fi
+        target="$1";;
+  esac
+  shift
+done
+
+# Per-target configuration
+
+case "$target" in
+  ppc-macosx)
+    arch="powerpc"
+    variant="macosx"
+    system="macosx"
+    cc="gcc -arch ppc"
+    cprepro="gcc -arch ppc -U__GNUC__ -E"
+    casm="gcc -arch ppc -c"
+    clinker="gcc -arch ppc"
+    libmath="";;
+  ppc-linux)
+    arch="powerpc"
+    variant="eabi"
+    system="linux"
+    cc="gcc"
+    cprepro="gcc -U__GNUC__ -E"
+    casm="gcc -c"
+    clinker="gcc"
+    libmath="-lm";;
+  arm-linux)
+    arch="arm"
+    variant="linux"
+    system="linux"
+    cc="gcc"
+    cprepro="gcc -U__GNUC__ -E"
+    casm="gcc -c"
+    clinker="gcc"
+    libmath="-lm";;
+ x86-linux)
+    arch="x86"
+    variant="linux"
+    system="linux"
+    cc="gcc -m32"
+    cprepro="gcc -U__GNUC__ -E"
+    casm="gcc -m32 -c"
+    clinker="gcc -m32"
+    libmath="-lm";;
+  x86-macosx)
+    arch="x86"
+    variant="macosx"
+    system="macosx"
+    cc="gcc -m32"
+    cprepro="gcc -m32 -U__GNUC__ -U__BLOCKS__ -E"
+    casm="gcc -m32 -c"
+    clinker="gcc -m32"
+    libmath="";;
+   manual)
+    ;;
+  "")
+    echo "No target specified." 1>&2
+    echo "$usage" 1>&2
+    exit 2;;
+  *)
+    echo "Unknown target '$target'." 1>&2
+    echo "$usage" 1>&2
+    exit 2;;
+esac
+
+# Generate Makefile.config
+
+rm -f Makefile.config
+cat > Makefile.config <<EOF
+PREFIX=$prefix
+BINDIR=$bindir
+LIBDIR=$libdir
+EOF
+
+if test "$target" != "manual"; then
+cat >> Makefile.config <<EOF
+ARCH=$arch
+VARIANT=$variant
+SYSTEM=$system
+CC=$cc
+CPREPRO=$cprepro
+CASM=$casm
+CLINKER=$clinker
+LIBMATH=$libmath
+EOF
+else
+cat >> Makefile.config <<'EOF'
+
+# Target architecture
+# ARCH=powerpc
+# ARCH=arm
+ARCH=
+
+# Target ABI
+# VARIANT=macosx   # for PowerPC / MacOS X
+# VARIANT=eabi     # for PowerPC / Linux and other SVR4 or EABI platforms
+# VARIANT=linux    # for ARM
+VARIANT=
+
+# Target operating system and development environment
+# See $(ARCH)/PrintAsm.ml for possible choices
+SYSTEM=
+
+# C compiler for compiling library files
+CC=gcc
+
+# Preprocessor for .c files
+CPREPRO=gcc -U__GNUC__ -E
+
+# Assembler for assembling .s files
+CASM=gcc -c
+
+# Linker
+CLINKER=gcc
+
+# Math library
+LIBMATH=-lm
+
+# CIL configuration target -- do not change
+EOF
+fi
+
+# Extract and configure Cil
+
+(tar -xzvf cil.tar.gz && cd cil && ./configure)
+
+# Extract 'ARCHOS' info from Cil configuration
+
+grep '^ARCHOS=' cil/config.log >> Makefile.config
+
+# Make the tarball-included Ott-generated .v files current
+
+touch clightTSO/clight_src/Csyntax.v
+touch clightTSO/clight_src/Csem.v
+
+
+### Summarize configuration
+
+if test "$target" = "manual"; then
+cat <<EOF
+
+Please finish the configuration by editing file ./Makefile.config
+
+EOF
+
+else
+
+bindirexp=`echo "$bindir" | sed -e "s|\\\$(PREFIX)|$prefix|"`
+libdirexp=`echo "$libdir" | sed -e "s|\\\$(PREFIX)|$prefix|"`
+
+cat <<EOF
+
+CompCert configuration:
+    Target architecture........... $arch ($variant)
+    OS and development env........ $system
+    C compiler.................... $cc
+    C preprocessor................ $cprepro
+    Assembler..................... $casm
+    Linker........................ $clinker
+    Math library.................. $libmath
+    Binaries installed in......... $bindirexp
+    Library files installed in.... $libdirexp
+
+EOF
+
+fi
