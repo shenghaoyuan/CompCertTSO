@@ -34,3 +34,20 @@ _All that what I do is make CompCertTSO executable on my Ubuntu_
   - _otherwise it returns an error: undefined reference to inline functions_
 - Complement three lost sed scripts: see [sed*](clightTSO/clight_src/)
   - _provided by Peter Sewell_
+  
+# FAQ
+1. If you do `make all` and get the following issue:
+```shell
+COQC cfrontend/Cshmgen.v
+File "/home/shyuan/GitHub/compcert-tso-1.13.8255/cfrontend/Cshmgen.v", line 64, characters 37-53:
+Error: The reference Csyntax.function was not found in the current
+environment.
+```
+  do
+```shell
+cd clightTSO/clight_src/
+make all
+cd ..
+cd ..
+make all
+```
